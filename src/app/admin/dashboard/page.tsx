@@ -80,6 +80,33 @@ export default function AdminDashboard() {
     return Array.from(classSet).sort();
   }, [mappings]);
 
+  const facultyScoresForClass = useMemo(() => {
+    if (!selectedClassName) return [];
+
+    const classFeedback = feedback.filter(fb => fb.class_name === selectedClassName);
+    const ratingsByFaculty: { [key: string]: { total: number; count: number; name: string } } = {};
+
+    classFeedback.forEach(fb => {
+      const facultyMember = faculty.find(f => f.faculty_id === fb.faculty_id);
+      if (!facultyMember) return;
+
+      if (!ratingsByFaculty[fb.faculty_id]) {
+        ratingsByFaculty[fb.faculty_id] = { total: 0, count: 0, name: facultyMember.name };
+      }
+
+      fb.ratings.forEach(rating => {
+        ratingsByFaculty[fb.faculty_id].total += rating.rating;
+        ratingsByFaculty[fb.faculty_id].count += 1;
+      });
+    });
+
+    return Object.entries(ratingsByFaculty).map(([faculty_id, data]) => ({
+      facultyName: data.name,
+      score: data.count > 0 ? (data.total / data.count).toFixed(2) : 'N/A',
+    })).sort((a, b) => b.score.localeCompare(a.score));
+
+  }, [selectedClassName, faculty, feedback]);
+
 
   return (
     <>
@@ -158,7 +185,35 @@ export default function AdminDashboard() {
                         <Separator className="my-6" />
                         <h3 className="text-lg font-semibold mb-2">Faculty Performance in {selectedClassName}</h3>
                         <p className="text-muted-foreground mb-4">Average ratings for all subjects taught in this class.</p>
-                        <ClassFacultyRatingsChart className={selectedClassName} />
+                        <div className="grid gap-6 md:grid-cols-3">
+                            <Card className="md:col-span-2 shadow-inner bg-muted/30">
+                                <CardHeader>
+                                    <CardTitle>Performance Chart</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <ClassFacultyRatingsChart className={selectedClassName} />
+                                </CardContent>
+                            </Card>
+                            <Card className="shadow-inner bg-muted/30">
+                                <CardHeader>
+                                    <CardTitle>Faculty Scores</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                     {facultyScoresForClass.length > 0 ? (
+                                        <ul className="space-y-3">
+                                            {facultyScoresForClass.map(faculty => (
+                                                <li key={faculty.facultyName} className="flex justify-between items-center text-sm">
+                                                    <span>{faculty.facultyName}</span>
+                                                    <span className="font-bold text-accent">{faculty.score}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <p className="text-muted-foreground text-center">No scores to display.</p>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </div>
                     </CardContent>
                 )}
             </Card>

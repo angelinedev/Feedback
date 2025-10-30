@@ -16,7 +16,7 @@ import { ResponseRateChart } from '@/components/charts/response-rate-chart';
 import type { Faculty } from '@/lib/types';
 import { useData } from '@/components/data-provider';
 import { Button } from '@/components/ui/button';
-import { KeyRound } from 'lucide-react';
+import { KeyRound, TrendingUp } from 'lucide-react';
 import { ChangePasswordDialog } from '@/components/change-password-dialog';
 
 
@@ -41,6 +41,27 @@ export default function FacultyDashboard() {
     }
   });
 
+  const cumulativeReport = useMemo(() => {
+    if (!faculty?.faculty_id || feedback.length === 0) return { average: 'N/A', count: 0 };
+    
+    const facultyFeedback = feedback.filter(f => f.faculty_id === faculty.faculty_id);
+    if(facultyFeedback.length === 0) return { average: 'N/A', count: 0 };
+    
+    let totalRating = 0;
+    let ratingCount = 0;
+
+    facultyFeedback.forEach(fb => {
+      fb.ratings.forEach(r => {
+        totalRating += r.rating;
+        ratingCount++;
+      });
+    });
+
+    const average = ratingCount > 0 ? (totalRating / ratingCount).toFixed(2) : 'N/A';
+    return { average, count: facultyFeedback.length };
+
+  }, [faculty?.faculty_id, feedback]);
+
   const selectedMapping = useMemo(() => {
     if (!selectedSubject) return null;
     return assignedSubjects.find(s => `${s.class_name}-${s.subject}` === selectedSubject);
@@ -48,8 +69,21 @@ export default function FacultyDashboard() {
 
   const feedbackForSubject = useMemo(() => {
     if (!selectedMapping) return [];
-    return feedback.filter(f => f.faculty_id === selectedMapping.faculty_id && f.subject === selectedMapping.subject);
+    return feedback.filter(f => f.faculty_id === selectedMapping.faculty_id && f.subject === selectedMapping.subject && f.class_name === selectedMapping.class_name);
   }, [selectedMapping, feedback]);
+
+  const facultyScore = useMemo(() => {
+      if(feedbackForSubject.length === 0) return 'N/A';
+      let totalRating = 0;
+      let ratingCount = 0;
+      feedbackForSubject.forEach(fb => {
+        fb.ratings.forEach(r => {
+          totalRating += r.rating;
+          ratingCount++;
+        });
+      });
+      return ratingCount > 0 ? (totalRating / ratingCount).toFixed(2) : 'N/A';
+  }, [feedbackForSubject]);
   
   const totalStudentsInClass = useMemo(() => {
     if (!selectedMapping) return 0;
@@ -68,7 +102,7 @@ export default function FacultyDashboard() {
       <div className="mb-8 flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Welcome, {user?.name}</h1>
-          <p className="text-muted-foreground">Select a subject to view the feedback report.</p>
+          <p className="text-muted-foreground">Select a subject to view its detailed feedback report.</p>
         </div>
         <ChangePasswordDialog 
           open={isPasswordDialogOpen} 
@@ -79,6 +113,19 @@ export default function FacultyDashboard() {
           </Button>
         </ChangePasswordDialog>
       </div>
+
+       <Card className="mb-8 shadow-2xl">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle>Cumulative Report</CardTitle>
+            <TrendingUp className="h-6 w-6 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-4xl font-bold text-accent">{cumulativeReport.average}</div>
+            <p className="text-xs text-muted-foreground">
+              Overall average rating from {cumulativeReport.count} total feedback forms received.
+            </p>
+          </CardContent>
+        </Card>
 
       <div className="mb-6 max-w-sm">
         <Select onValueChange={setSelectedSubject} value={selectedSubject || ''}>
@@ -96,7 +143,7 @@ export default function FacultyDashboard() {
       </div>
       
       {selectedMapping ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-4">
           <Card className="lg:col-span-2 shadow-2xl">
             <CardHeader>
               <CardTitle>Feedback Criteria Analysis</CardTitle>
@@ -107,19 +154,32 @@ export default function FacultyDashboard() {
             </CardContent>
           </Card>
           
-          <Card className="shadow-2xl">
-            <CardHeader>
-              <CardTitle>Response Rate</CardTitle>
-              <CardDescription>
-                {feedbackForSubject.length} out of {totalStudentsInClass} students submitted feedback.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponseRateChart submitted={feedbackForSubject.length} total={totalStudentsInClass} />
-            </CardContent>
-          </Card>
+          <div className="space-y-6">
+            <Card className="shadow-2xl">
+              <CardHeader>
+                <CardTitle>Faculty Score</CardTitle>
+                <CardDescription>
+                  Avg. rating for this subject
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-4xl font-bold text-accent">{facultyScore}</p>
+              </CardContent>
+            </Card>
+            <Card className="shadow-2xl">
+              <CardHeader>
+                <CardTitle>Response Rate</CardTitle>
+                <CardDescription>
+                  {feedbackForSubject.length} of {totalStudentsInClass} students submitted.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponseRateChart submitted={feedbackForSubject.length} total={totalStudentsInClass} />
+              </CardContent>
+            </Card>
+          </div>
 
-          <Card className="lg:col-span-3 shadow-2xl">
+          <Card className="lg:col-span-4 shadow-2xl">
             <CardHeader>
               <CardTitle>Anonymous Comments</CardTitle>
               <CardDescription>All comments are displayed in a random order to ensure anonymity.</CardDescription>
