@@ -80,8 +80,9 @@ export default function StudentDashboard() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {subjectsForStudent.map(mapping => {
           const isSubmitted = submittedFeedbackKeys.has(`${mapping.faculty_id}-${mapping.subject}`);
+          const uniqueKey = `${mapping.id}-${mapping.faculty_id}-${mapping.subject}`;
           return (
-            <Card key={mapping.id} className="shadow-2xl flex flex-col transition-all duration-300 hover:border-primary">
+            <Card key={uniqueKey} className="shadow-2xl flex flex-col transition-all duration-300 hover:border-primary">
               <CardHeader>
                 <CardTitle>{mapping.subject}</CardTitle>
                 <CardDescription>Faculty: {mapping.facultyName}</CardDescription>
@@ -133,5 +134,3 @@ export default function StudentDashboard() {
     </div>
   );
 }
-
-    
