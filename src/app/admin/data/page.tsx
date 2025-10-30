@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -14,11 +13,15 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { Student, Faculty, ClassFacultyMapping } from "@/lib/types";
 import { useData } from "@/components/data-provider";
+import { useFirebase } from "@/firebase";
+import { doc, setDoc, collection } from "firebase/firestore";
+import { createUserWithEmailAndPassword } from "firebase/auth";
 
 type UploadType = 'students' | 'faculty' | 'mappings';
 
 export default function DataManagementPage() {
-    const { students, setStudents, faculty, setFaculty, mappings, setMappings } = useData();
+    const { students, faculty, mappings } = useData();
+    const { firestore, auth } = useFirebase();
   
   const [pastedData, setPastedData] = useState<Record<UploadType, string>>({
     students: "",
@@ -45,74 +48,88 @@ export default function DataManagementPage() {
 
     setUploading(type);
     
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
     try {
         const lines = data.trim().split('\n').slice(1);
         let addedCount = 0;
         let skippedCount = 0;
 
         if (type === 'students') {
-            const newStudents: Student[] = [];
             const existingIds = new Set(students.map(s => s.register_number));
-            lines.forEach(line => {
+            for (const line of lines) {
                 const [register_number, name, password, class_name] = line.split(',');
                 if (register_number && name && password && class_name && !existingIds.has(register_number)) {
-                    newStudents.push({ id: register_number, register_number, name, password, class_name });
-                    existingIds.add(register_number);
+                    const email = `${register_number}@feedloop-student.com`;
+                    try {
+                        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                        const studentData: Omit<Student, 'id'> = { register_number, name, class_name };
+                        await setDoc(doc(firestore, "students", userCredential.user.uid), studentData);
+                        existingIds.add(register_number);
+                        addedCount++;
+                    } catch (error: any) {
+                        if (error.code === 'auth/email-already-in-use') {
+                            skippedCount++;
+                        } else {
+                            throw error; // Rethrow other errors
+                        }
+                    }
                 } else {
                     skippedCount++;
                 }
-            });
-            setStudents(prev => [...prev, ...newStudents]);
-            addedCount = newStudents.length;
+            }
         } else if (type === 'faculty') {
-            const newFaculty: Faculty[] = [];
             const existingIds = new Set(faculty.map(f => f.faculty_id));
-            lines.forEach(line => {
+            for (const line of lines) {
                 const [faculty_id, name, password, department] = line.split(',');
                 if (faculty_id && name && password && department && !existingIds.has(faculty_id)) {
-                    newFaculty.push({ id: faculty_id, faculty_id, name, password, department });
-                    existingIds.add(faculty_id);
+                     const email = `${faculty_id}@feedloop-faculty.com`;
+                     try {
+                        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                        const facultyData: Omit<Faculty, 'id'> = { faculty_id, name, department };
+                        await setDoc(doc(firestore, "faculty", userCredential.user.uid), facultyData);
+                        existingIds.add(faculty_id);
+                        addedCount++;
+                    } catch (error: any) {
+                        if (error.code === 'auth/email-already-in-use') {
+                            skippedCount++;
+                        } else {
+                            throw error;
+                        }
+                    }
                 } else {
                     skippedCount++;
                 }
-            });
-            setFaculty(prev => [...prev, ...newFaculty]);
-            addedCount = newFaculty.length;
+            }
         } else if (type === 'mappings') {
-            const newMappings: ClassFacultyMapping[] = [];
             const existingMappings = new Set(mappings.map(m => `${m.class_name}-${m.faculty_id}-${m.subject}`));
-            lines.forEach(line => {
+            for (const line of lines) {
                 const [class_name, faculty_id, subject] = line.split(',');
                 const mappingKey = `${class_name}-${faculty_id}-${subject}`;
                 if (class_name && faculty_id && subject && !existingMappings.has(mappingKey)) {
-                    newMappings.push({ id: `map-${Date.now()}-${Math.random()}`, class_name, faculty_id, subject });
+                    const newDocRef = doc(collection(firestore, 'classFacultyMapping'));
+                    await setDoc(newDocRef, { class_name, faculty_id, subject, id: newDocRef.id });
                     existingMappings.add(mappingKey);
+                    addedCount++;
                 } else {
                     skippedCount++;
                 }
-            });
-            setMappings(prev => [...prev, ...newMappings]);
-            addedCount = newMappings.length;
+            }
         }
 
         setPastedData(prev => ({ ...prev, [type]: "" })); // Clear textarea
-        setUploading(null);
-
         toast({
           title: "Upload Successful",
-          description: `${addedCount} records added. ${skippedCount} duplicate records were skipped.`,
+          description: `${addedCount} records added. ${skippedCount} duplicate or invalid records were skipped.`,
         });
 
     } catch (error) {
-        setUploading(null);
         toast({
           variant: "destructive",
           title: "Upload Failed",
-          description: `There was an error parsing the data. Please ensure it's in the correct CSV format.`,
+          description: `There was an error processing the data. Please check the console for details.`,
         });
         console.error("Upload error:", error);
+    } finally {
+        setUploading(null);
     }
   };
 

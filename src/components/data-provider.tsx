@@ -1,44 +1,60 @@
 
 "use client";
 
-import React, { createContext, useState, ReactNode, useContext } from 'react';
+import React, { createContext, ReactNode, useContext } from 'react';
 import type { Student, Faculty, ClassFacultyMapping, Feedback, Question } from '@/lib/types';
-import { mockQuestions as initialMockQuestions } from '@/lib/mock-data';
+import { useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query } from 'firebase/firestore';
+import { useFirebase } from '@/firebase';
+import { mockQuestions } from '@/lib/mock-data';
 
 interface DataContextType {
   students: Student[];
-  setStudents: React.Dispatch<React.SetStateAction<Student[]>>;
   faculty: Faculty[];
-  setFaculty: React.Dispatch<React.SetStateAction<Faculty[]>>;
   mappings: ClassFacultyMapping[];
-  setMappings: React.Dispatch<React.SetStateAction<ClassFacultyMapping[]>>;
   feedback: Feedback[];
-  setFeedback: React.Dispatch<React.SetStateAction<Feedback[]>>;
   questions: Question[];
-  setQuestions: React.Dispatch<React.SetStateAction<Question[]>>;
+  loading: boolean;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const [students, setStudents] = useState<Student[]>([]);
-  const [faculty, setFaculty] = useState<Faculty[]>([]);
-  const [mappings, setMappings] = useState<ClassFacultyMapping[]>([]);
-  const [feedback, setFeedback] = useState<Feedback[]>([]);
-  const [questions, setQuestions] = useState<Question[]>(initialMockQuestions);
+  const { firestore } = useFirebase();
 
+  const studentsQuery = useMemoFirebase(
+    () => (firestore ? query(collection(firestore, 'students')) : null),
+    [firestore]
+  );
+  const { data: studentsData, isLoading: studentsLoading } = useCollection<Student>(studentsQuery);
+
+  const facultyQuery = useMemoFirebase(
+    () => (firestore ? query(collection(firestore, 'faculty')) : null),
+    [firestore]
+  );
+  const { data: facultyData, isLoading: facultyLoading } = useCollection<Faculty>(facultyQuery);
+
+  const mappingsQuery = useMemoFirebase(
+    () => (firestore ? query(collection(firestore, 'classFacultyMapping')) : null),
+    [firestore]
+  );
+  const { data: mappingsData, isLoading: mappingsLoading } = useCollection<ClassFacultyMapping>(mappingsQuery);
+  
+  const feedbackQuery = useMemoFirebase(
+    () => (firestore ? query(collection(firestore, 'feedback')) : null),
+    [firestore]
+  );
+  const { data: feedbackData, isLoading: feedbackLoading } = useCollection<Feedback>(feedbackQuery);
+
+  const loading = studentsLoading || facultyLoading || mappingsLoading || feedbackLoading;
 
   const value = {
-    students,
-    setStudents,
-    faculty,
-    setFaculty,
-    mappings,
-    setMappings,
-    feedback,
-    setFeedback,
-    questions,
-    setQuestions
+    students: studentsData || [],
+    faculty: facultyData || [],
+    mappings: mappingsData || [],
+    feedback: feedbackData || [],
+    questions: mockQuestions, // Questions are static for now
+    loading: loading,
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

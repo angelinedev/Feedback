@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -19,7 +18,6 @@ import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { useData } from "./data-provider";
 import { Loader2 } from "lucide-react";
 
 interface ChangePasswordDialogProps {
@@ -38,8 +36,7 @@ const passwordSchema = z.object({
 });
 
 export function ChangePasswordDialog({ children, open, onOpenChange }: ChangePasswordDialogProps) {
-  const { user } = useAuth();
-  const { students, setStudents, faculty, setFaculty } = useData();
+  const { user, changePassword } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
 
@@ -52,35 +49,27 @@ export function ChangePasswordDialog({ children, open, onOpenChange }: ChangePas
     },
   });
 
-  const onSubmit = (values: z.infer<typeof passwordSchema>) => {
+  const onSubmit = async (values: z.infer<typeof passwordSchema>) => {
     if (!user) return;
     setLoading(true);
 
-    const currentUserDetails = user.details;
-    if (currentUserDetails.password !== values.currentPassword) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Your current password does not match.",
-      });
-      setLoading(false);
-      return;
+    try {
+        await changePassword(values.currentPassword, values.newPassword);
+        toast({
+          title: "Success",
+          description: "Your password has been changed successfully.",
+        });
+        onOpenChange(false);
+        form.reset();
+    } catch(error: any) {
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: error.message || "An error occurred.",
+        });
+    } finally {
+        setLoading(false);
     }
-
-    if(user.role === 'student') {
-        setStudents(prev => prev.map(s => s.id === user.id ? { ...s, password: values.newPassword } : s));
-    } else if (user.role === 'faculty') {
-        setFaculty(prev => prev.map(f => f.id === user.id ? { ...f, password: values.newPassword } : f));
-    }
-
-    toast({
-      title: "Success",
-      description: "Your password has been changed successfully.",
-    });
-
-    setLoading(false);
-    onOpenChange(false);
-    form.reset();
   };
 
   return (

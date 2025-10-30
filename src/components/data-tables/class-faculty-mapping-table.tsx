@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -8,6 +7,7 @@ import { generateClassFacultyMapping } from "@/ai/flows/generate-class-faculty-m
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { doc, setDoc, deleteDoc, collection } from "firebase/firestore"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -27,6 +27,7 @@ import { Input } from "../ui/input"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { useData } from "../data-provider"
+import { useFirebase } from "@/firebase"
 
 interface ClassFacultyMappingTableProps {
 }
@@ -38,7 +39,7 @@ const mappingSchema = z.object({
     subject: z.string().min(1, "Subject is required."),
 });
 
-const MappingForm = ({ mapping, onSave, onCancel }: { mapping?: ClassFacultyMapping; onSave: (data: ClassFacultyMapping) => void; onCancel: () => void; }) => {
+const MappingForm = ({ mapping, onSave, onCancel }: { mapping?: ClassFacultyMapping; onSave: (data: Omit<ClassFacultyMapping, 'id'>) => void; onCancel: () => void; }) => {
     const { mappings, faculty } = useData();
 
     const existingMappings = React.useMemo(() => new Set(mappings.map(m => `${m.class_name}-${m.faculty_id}-${m.subject}`)), [mappings]);
@@ -58,7 +59,8 @@ const MappingForm = ({ mapping, onSave, onCancel }: { mapping?: ClassFacultyMapp
     });
 
     const onSubmit = (values: z.infer<typeof formSchema>) => {
-        onSave({ ...values, id: mapping?.id || `map-${Date.now()}` });
+        const { id, ...data } = values;
+        onSave(data);
     };
 
     return (
@@ -123,17 +125,30 @@ const MappingForm = ({ mapping, onSave, onCancel }: { mapping?: ClassFacultyMapp
 
 
 const ActionsCell = ({ mapping }: { mapping: ClassFacultyMapping; }) => {
-    const { setMappings } = useData();
+    const { firestore } = useFirebase();
     const [isEditing, setIsEditing] = React.useState(false);
+    const { toast } = useToast();
 
-    const handleEditSave = (updatedMapping: ClassFacultyMapping) => {
-        setMappings(prev => prev.map(m => m.id === mapping.id ? updatedMapping : m));
-        setIsEditing(false);
+    const handleEditSave = async (data: Omit<ClassFacultyMapping, 'id'>) => {
+        try {
+            await setDoc(doc(firestore, 'classFacultyMapping', mapping.id), data, { merge: true });
+            toast({ title: "Mapping Updated" });
+            setIsEditing(false);
+        } catch(error) {
+            console.error("Error updating mapping:", error);
+            toast({ variant: 'destructive', title: "Update failed" });
+        }
     };
     
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if(confirm(`Are you sure you want to delete this mapping?`)) {
-            setMappings(prev => prev.filter(m => m.id !== mapping.id));
+            try {
+                await deleteDoc(doc(firestore, 'classFacultyMapping', mapping.id));
+                toast({ title: "Mapping Deleted" });
+            } catch (error) {
+                console.error("Error deleting mapping:", error);
+                toast({ variant: 'destructive', title: "Delete failed" });
+            }
         }
     };
   
@@ -190,18 +205,25 @@ const getColumns = (allFaculty: Faculty[]): ColumnDef<ClassFacultyMapping>[] => 
 ]
 
 export function ClassFacultyMappingTable({}: ClassFacultyMappingTableProps) {
-    const { mappings, setMappings, faculty } = useData();
+    const { mappings, faculty } = useData();
     const [prompt, setPrompt] = React.useState<string>("");
     const [loading, setLoading] = React.useState<boolean>(false);
     const [isAdding, setIsAdding] = React.useState<boolean>(false);
     const { toast } = useToast();
+    const { firestore } = useFirebase();
     
     const columns = React.useMemo(() => getColumns(faculty), [faculty]);
 
-    const handleAddSave = (newMapping: ClassFacultyMapping) => {
-        setMappings(prev => [...prev, newMapping]);
-        toast({ title: "Mapping Added", description: `The new mapping has been created.` });
-        setIsAdding(false);
+    const handleAddSave = async (data: Omit<ClassFacultyMapping, 'id'>) => {
+        const newDocRef = doc(collection(firestore, 'classFacultyMapping'));
+        try {
+            await setDoc(newDocRef, { ...data, id: newDocRef.id });
+            toast({ title: "Mapping Added", description: `The new mapping has been created.` });
+            setIsAdding(false);
+        } catch(error) {
+             console.error("Error adding mapping:", error);
+            toast({ variant: 'destructive', title: "Add failed" });
+        }
     };
 
     const handleGenerate = async () => {
@@ -213,21 +235,25 @@ export function ClassFacultyMappingTable({}: ClassFacultyMappingTableProps) {
         try {
             const output = await generateClassFacultyMapping({ prompt });
             
-            const currentMappings = new Set(mappings.map(m => `${m.class_name}-${m.faculty_id}-${m.subject}`));
+            const existingMappings = new Set(mappings.map(m => `${m.class_name}-${m.faculty_id}-${m.subject}`));
             let skippedCount = 0;
+            let addedCount = 0;
 
-            const newMappings = output.mappings.filter(m => {
+            const promises = output.mappings.map(async (m) => {
                 const mappingKey = `${m.class_name}-${m.faculty_id}-${m.subject}`;
-                if (currentMappings.has(mappingKey)) {
+                if (existingMappings.has(mappingKey)) {
                     skippedCount++;
-                    return false;
+                    return;
                 }
-                currentMappings.add(mappingKey);
-                return true;
-            }).map((m, i) => ({...m, id: `gen-${Date.now()}-${i}`}));
+                existingMappings.add(mappingKey);
+                const newDocRef = doc(collection(firestore, 'classFacultyMapping'));
+                await setDoc(newDocRef, { ...m, id: newDocRef.id });
+                addedCount++;
+            });
+            
+            await Promise.all(promises);
 
-            setMappings(prev => [...prev, ...newMappings]);
-            toast({ title: "Mappings Generated", description: `${newMappings.length} new mappings added. ${skippedCount} duplicates skipped.` });
+            toast({ title: "Mappings Generated", description: `${addedCount} new mappings added. ${skippedCount} duplicates skipped.` });
 
         } catch (error) {
             console.error("Failed to generate mappings:", error);

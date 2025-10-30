@@ -1,17 +1,15 @@
 
 export interface Student {
-  id: string; // register_number
+  id: string; // Corresponds to Firebase Auth UID
   register_number: string;
   name: string;
-  password?: string;
   class_name: string;
 }
 
 export interface Faculty {
-  id: string; // faculty_id
+  id: string; // Corresponds to Firebase Auth UID
   faculty_id: string;
   name:string;
-  password?: string;
   department: string;
 }
 
