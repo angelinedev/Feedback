@@ -18,39 +18,40 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { DataTable } from "./data-table"
-import type { Faculty } from "@/lib/types"
+import type { Student } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
 import { Input } from "../ui/input"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
 
-interface FacultyTableProps {
-  data: Faculty[];
-  setData: React.Dispatch<React.SetStateAction<Faculty[]>>;
+interface StudentTableProps {
+  data: Student[];
+  setData: React.Dispatch<React.SetStateAction<Student[]>>;
 }
 
-const facultySchema = z.object({
+const studentSchema = z.object({
     id: z.string().optional(),
-    faculty_id: z.string().min(3, "ID must be at least 3 digits").max(4, "ID must be at most 4 digits"),
+    register_number: z.string().length(16, "Register number must be 16 digits."),
     name: z.string().min(1, "Name is required."),
-    department: z.string().min(1, "Department is required."),
+    class_name: z.string().min(1, "Class name is required."),
 });
 
-const FacultyForm = ({ faculty, onSave, onCancel, existingFacultyIds }: { faculty?: Faculty; onSave: (data: Faculty) => void; onCancel: () => void; existingFacultyIds: Set<string> }) => {
-    const formSchema = facultySchema.extend({
-        faculty_id: z.string().min(3, "ID must be at least 3 digits").max(4, "ID must be at most 4 digits").refine(val => {
-            if (faculty?.faculty_id === val) return true;
-            return !existingFacultyIds.has(val);
-        }, "This Faculty ID already exists."),
+
+const StudentForm = ({ student, onSave, onCancel, existingRegNumbers }: { student?: Student; onSave: (data: Student) => void; onCancel: () => void; existingRegNumbers: Set<string> }) => {
+    const formSchema = studentSchema.extend({
+        register_number: z.string().length(16, "Register number must be 16 digits.").refine(val => {
+            if (student?.register_number === val) return true; // allow saving with the same number
+            return !existingRegNumbers.has(val);
+        }, "This register number already exists."),
     });
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
-        defaultValues: faculty || { faculty_id: "", name: "", department: "" },
+        defaultValues: student || { register_number: "", name: "", class_name: "" },
     });
 
     const onSubmit = (values: z.infer<typeof formSchema>) => {
-        onSave({ ...values, id: faculty?.id || values.faculty_id, password: faculty?.password || 'password123' });
+        onSave({ ...values, id: student?.id || values.register_number, password: student?.password || 'password123' });
     };
 
     return (
@@ -58,12 +59,12 @@ const FacultyForm = ({ faculty, onSave, onCancel, existingFacultyIds }: { facult
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
                     control={form.control}
-                    name="faculty_id"
+                    name="register_number"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Faculty ID</FormLabel>
+                            <FormLabel>Register Number</FormLabel>
                             <FormControl>
-                                <Input placeholder="3-4 digit ID" {...field} disabled={!!faculty} />
+                                <Input placeholder="16-digit register number" {...field} disabled={!!student} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -76,7 +77,7 @@ const FacultyForm = ({ faculty, onSave, onCancel, existingFacultyIds }: { facult
                         <FormItem>
                             <FormLabel>Name</FormLabel>
                             <FormControl>
-                                <Input placeholder="Faculty member's name" {...field} />
+                                <Input placeholder="Student's name" {...field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -84,12 +85,12 @@ const FacultyForm = ({ faculty, onSave, onCancel, existingFacultyIds }: { facult
                 />
                 <FormField
                     control={form.control}
-                    name="department"
+                    name="class_name"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Department</FormLabel>
+                            <FormLabel>Class Name</FormLabel>
                             <FormControl>
-                                <Input placeholder="e.g., Computer Science" {...field} />
+                                <Input placeholder="e.g., CS-A" {...field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -104,22 +105,23 @@ const FacultyForm = ({ faculty, onSave, onCancel, existingFacultyIds }: { facult
     );
 };
 
-const ActionsCell = ({ faculty, setData, existingFacultyIds }: { faculty: Faculty; setData: React.Dispatch<React.SetStateAction<Faculty[]>>; existingFacultyIds: Set<string> }) => {
+
+const ActionsCell = ({ student, setData, existingRegNumbers }: { student: Student; setData: React.Dispatch<React.SetStateAction<Student[]>>; existingRegNumbers: Set<string>; }) => {
     const [isEditing, setIsEditing] = React.useState(false);
-    
-    const handleEditSave = (updatedFaculty: Faculty) => {
-        setData(prev => prev.map(f => f.id === updatedFaculty.id ? updatedFaculty : f));
+
+    const handleEditSave = (updatedStudent: Student) => {
+        setData(prev => prev.map(s => s.id === updatedStudent.id ? updatedStudent : s));
         setIsEditing(false);
     };
-
+    
     const handleDelete = () => {
-        if(confirm(`Are you sure you want to delete ${faculty.name}?`)) {
-            setData(prev => prev.filter(f => f.id !== faculty.id));
+        if (confirm(`Are you sure you want to delete ${student.name}?`)) {
+            setData(prev => prev.filter(s => s.id !== student.id));
         }
     };
   
     return (
-     <>
+        <>
         <Dialog open={isEditing} onOpenChange={setIsEditing}>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -135,70 +137,70 @@ const ActionsCell = ({ faculty, setData, existingFacultyIds }: { faculty: Facult
                 </DropdownMenuContent>
             </DropdownMenu>
 
-             <DialogContent>
+            <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Edit Faculty</DialogTitle>
-                    <DialogDescription>Update the details for this faculty member.</DialogDescription>
+                    <DialogTitle>Edit Student</DialogTitle>
+                    <DialogDescription>Update the details for this student.</DialogDescription>
                 </DialogHeader>
-                <FacultyForm faculty={faculty} onSave={handleEditSave} onCancel={() => setIsEditing(false)} existingFacultyIds={existingFacultyIds} />
+                <StudentForm student={student} onSave={handleEditSave} onCancel={() => setIsEditing(false)} existingRegNumbers={existingRegNumbers} />
             </DialogContent>
         </Dialog>
-     </>
+        </>
     );
 };
 
-const getColumns = (setData: React.Dispatch<React.SetStateAction<Faculty[]>>, existingFacultyIds: Set<string>): ColumnDef<Faculty>[] => [
+const getColumns = (setData: React.Dispatch<React.SetStateAction<Student[]>>, existingRegNumbers: Set<string>): ColumnDef<Student>[] => [
   {
-    accessorKey: "faculty_id",
-    header: "Faculty ID",
+    accessorKey: "register_number",
+    header: "Register Number",
   },
   {
     accessorKey: "name",
     header: "Name",
   },
   {
-    accessorKey: "department",
-    header: "Department",
+    accessorKey: "class_name",
+    header: "Class",
   },
   {
     id: "actions",
-    cell: ({ row }) => <ActionsCell faculty={row.original} setData={setData} existingFacultyIds={existingFacultyIds} />,
+    cell: ({ row }) => <ActionsCell student={row.original} setData={setData} existingRegNumbers={existingRegNumbers} />,
   },
-];
+]
 
-export function FacultyTable({ data, setData }: FacultyTableProps) {
+export function StudentTable({ data, setData }: StudentTableProps) {
     const [isAdding, setIsAdding] = React.useState(false);
     const { toast } = useToast();
     
-    const existingFacultyIds = React.useMemo(() => new Set(data.map(f => f.faculty_id)), [data]);
-    const columns = React.useMemo(() => getColumns(setData, existingFacultyIds), [setData, existingFacultyIds]);
+    const existingRegNumbers = React.useMemo(() => new Set(data.map(s => s.register_number)), [data]);
+    const columns = React.useMemo(() => getColumns(setData, existingRegNumbers), [setData, existingRegNumbers]);
 
-    const handleAddSave = (newFaculty: Faculty) => {
-        setData(prev => [...prev, newFaculty]);
-        toast({ title: "Faculty Added", description: `${newFaculty.name} has been added.` });
+    const handleAddSave = (newStudent: Student) => {
+        setData(prev => [...prev, newStudent]);
+        toast({ title: "Student Added", description: `${newStudent.name} has been added.` });
         setIsAdding(false);
     };
 
   return (
     <Card className="shadow-2xl">
         <CardHeader>
-            <CardTitle>Faculty</CardTitle>
-            <CardDescription>Add, edit, and remove faculty records.</CardDescription>
+            <CardTitle>Students</CardTitle>
+            <CardDescription>Add, edit, and remove student records.</CardDescription>
         </CardHeader>
         <CardContent>
             <div className="flex justify-end mb-4">
-                 <Dialog open={isAdding} onOpenChange={setIsAdding}>
+                <Dialog open={isAdding} onOpenChange={setIsAdding}>
                     <DialogTrigger asChild>
                         <Button>
-                            <PlusCircle className="mr-2 h-4 w-4" /> Add Faculty
+                            <PlusCircle className="mr-2 h-4 w-4" /> Add Student
                         </Button>
                     </DialogTrigger>
                     <DialogContent>
                         <DialogHeader>
-                            <DialogTitle>Add New Faculty</DialogTitle>
-                            <DialogDescription>Enter the details for the new faculty member.</DialogDescription>
+                            <DialogTitle>Add New Student</DialogTitle>
+                            <DialogDescription>Enter the details for the new student.</DialogDescription>
                         </DialogHeader>
-                        <FacultyForm onSave={handleAddSave} onCancel={() => setIsAdding(false)} existingFacultyIds={existingFacultyIds} />
+                        <StudentForm onSave={handleAddSave} onCancel={() => setIsAdding(false)} existingRegNumbers={existingRegNumbers} />
                     </DialogContent>
                 </Dialog>
             </div>

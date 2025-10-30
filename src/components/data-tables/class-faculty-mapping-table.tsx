@@ -5,6 +5,9 @@ import * as React from "react"
 import { ColumnDef } from "@tanstack/react-table"
 import { MoreHorizontal, PlusCircle, Sparkles, Loader2 } from "lucide-react"
 import { generateClassFacultyMapping } from "@/ai/flows/generate-class-faculty-mapping"
+import { z } from "zod"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -19,6 +22,10 @@ import { DataTable } from "./data-table"
 import type { ClassFacultyMapping, Faculty } from "@/lib/types"
 import { Textarea } from "../ui/textarea"
 import { useToast } from "@/hooks/use-toast"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog"
+import { Input } from "../ui/input"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 
 interface ClassFacultyMappingTableProps {
   data: ClassFacultyMapping[];
@@ -26,13 +33,101 @@ interface ClassFacultyMappingTableProps {
   allFaculty: Faculty[];
 }
 
-const ActionsCell = ({ mapping, setData }: { mapping: ClassFacultyMapping; setData: React.Dispatch<React.SetStateAction<ClassFacultyMapping[]>> }) => {
-    const handleEdit = () => {
-        const newSubject = prompt("Enter new subject:", mapping.subject);
-        if (newSubject) {
-            setData(prev => prev.map(m => m.id === mapping.id ? { ...m, subject: newSubject } : m));
-        }
+const mappingSchema = z.object({
+    id: z.string().optional(),
+    class_name: z.string().min(1, "Class name is required."),
+    faculty_id: z.string().min(1, "Faculty must be selected."),
+    subject: z.string().min(1, "Subject is required."),
+});
+
+const MappingForm = ({ mapping, onSave, onCancel, existingMappings, allFaculty }: { mapping?: ClassFacultyMapping; onSave: (data: ClassFacultyMapping) => void; onCancel: () => void; existingMappings: Set<string>; allFaculty: Faculty[] }) => {
+    const formSchema = mappingSchema.refine(data => {
+        const mappingKey = `${data.class_name}-${data.faculty_id}-${data.subject}`;
+        if (mapping?.id && `${mapping.class_name}-${mapping.faculty_id}-${mapping.subject}` === mappingKey) return true;
+        return !existingMappings.has(mappingKey);
+    }, {
+        message: "This exact mapping already exists.",
+        path: ["subject"], // Show error on a field
+    });
+    
+    const form = useForm<z.infer<typeof formSchema>>({
+        resolver: zodResolver(formSchema),
+        defaultValues: mapping || { class_name: "", faculty_id: "", subject: "" },
+    });
+
+    const onSubmit = (values: z.infer<typeof formSchema>) => {
+        onSave({ ...values, id: mapping?.id || `map-${Date.now()}` });
     };
+
+    return (
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                    control={form.control}
+                    name="class_name"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Class Name</FormLabel>
+                            <FormControl>
+                                <Input placeholder="e.g., CS-A" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="faculty_id"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Faculty</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a faculty member" />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                            {allFaculty.map(f => (
+                                <SelectItem key={f.id} value={f.faculty_id}>{f.name} ({f.faculty_id})</SelectItem>
+                            ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="subject"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Subject</FormLabel>
+                            <FormControl>
+                                <Input placeholder="e.g., Data Structures" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <DialogFooter>
+                    <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
+                    <Button type="submit">Save</Button>
+                </DialogFooter>
+            </form>
+        </Form>
+    );
+};
+
+
+const ActionsCell = ({ mapping, setData, allFaculty, existingMappings }: { mapping: ClassFacultyMapping; setData: React.Dispatch<React.SetStateAction<ClassFacultyMapping[]>>; allFaculty: Faculty[]; existingMappings: Set<string> }) => {
+    const [isEditing, setIsEditing] = React.useState(false);
+
+    const handleEditSave = (updatedMapping: ClassFacultyMapping) => {
+        setData(prev => prev.map(m => m.id === mapping.id ? updatedMapping : m));
+        setIsEditing(false);
+    };
+    
     const handleDelete = () => {
         if(confirm(`Are you sure you want to delete this mapping?`)) {
             setData(prev => prev.filter(m => m.id !== mapping.id));
@@ -40,23 +135,35 @@ const ActionsCell = ({ mapping, setData }: { mapping: ClassFacultyMapping; setDa
     };
   
     return (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0">
-            <span className="sr-only">Open menu</span>
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-          <DropdownMenuItem onClick={handleEdit}>Edit</DropdownMenuItem>
-          <DropdownMenuItem onClick={handleDelete} className="text-destructive">Delete</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+     <>
+        <Dialog open={isEditing} onOpenChange={setIsEditing}>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                    <span className="sr-only">Open menu</span>
+                    <MoreHorizontal className="h-4 w-4" />
+                </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => setIsEditing(true)}>Edit</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDelete} className="text-destructive">Delete</DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Edit Mapping</DialogTitle>
+                    <DialogDescription>Update this class-faculty mapping.</DialogDescription>
+                </DialogHeader>
+                <MappingForm mapping={mapping} onSave={handleEditSave} onCancel={() => setIsEditing(false)} existingMappings={existingMappings} allFaculty={allFaculty} />
+            </DialogContent>
+        </Dialog>
+     </>
     );
 };
 
-const getColumns = (setData: React.Dispatch<React.SetStateAction<ClassFacultyMapping[]>>, allFaculty: Faculty[]): ColumnDef<ClassFacultyMapping>[] => [
+const getColumns = (setData: React.Dispatch<React.SetStateAction<ClassFacultyMapping[]>>, allFaculty: Faculty[], existingMappings: Set<string>): ColumnDef<ClassFacultyMapping>[] => [
   {
     accessorKey: "class_name",
     header: "Class Name",
@@ -75,38 +182,24 @@ const getColumns = (setData: React.Dispatch<React.SetStateAction<ClassFacultyMap
   },
   {
     id: "actions",
-    cell: ({ row }) => <ActionsCell mapping={row.original} setData={setData} />,
+    cell: ({ row }) => <ActionsCell mapping={row.original} setData={setData} allFaculty={allFaculty} existingMappings={existingMappings} />,
   },
 ]
 
 export function ClassFacultyMappingTable({ data, setData, allFaculty }: ClassFacultyMappingTableProps) {
     const [prompt, setPrompt] = React.useState<string>("");
     const [loading, setLoading] = React.useState<boolean>(false);
+    const [isAdding, setIsAdding] = React.useState<boolean>(false);
     const { toast } = useToast();
-    const columns = React.useMemo(() => getColumns(setData, allFaculty), [setData, allFaculty]);
+    
+    const existingMappings = React.useMemo(() => new Set(data.map(m => `${m.class_name}-${m.faculty_id}-${m.subject}`)), [data]);
+    const columns = React.useMemo(() => getColumns(setData, allFaculty, existingMappings), [setData, allFaculty, existingMappings]);
 
-    const handleAdd = () => {
-        const className = prompt("Enter Class Name:");
-        if (!className) return;
-        const facultyId = prompt("Enter Faculty ID:");
-        if (!facultyId) return;
-        const subject = prompt("Enter Subject:");
-        if (!subject) return;
-
-        const isDuplicate = data.some(
-            m => m.class_name === className && m.faculty_id === facultyId && m.subject === subject
-        );
-
-        if (isDuplicate) {
-            toast({
-                variant: 'destructive',
-                title: "Duplicate Mapping",
-                description: "This exact mapping already exists.",
-            });
-            return;
-        }
-        setData(prev => [...prev, { id: `map-${Date.now()}`, class_name: className, faculty_id: facultyId, subject }]);
-    }
+    const handleAddSave = (newMapping: ClassFacultyMapping) => {
+        setData(prev => [...prev, newMapping]);
+        toast({ title: "Mapping Added", description: `The new mapping has been created.` });
+        setIsAdding(false);
+    };
 
     const handleGenerate = async () => {
         if (!prompt.trim()) {
@@ -117,16 +210,16 @@ export function ClassFacultyMappingTable({ data, setData, allFaculty }: ClassFac
         try {
             const output = await generateClassFacultyMapping({ prompt });
             
-            const existingMappings = new Set(data.map(m => `${m.class_name}-${m.faculty_id}-${m.subject}`));
+            const currentMappings = new Set(data.map(m => `${m.class_name}-${m.faculty_id}-${m.subject}`));
             let skippedCount = 0;
 
             const newMappings = output.mappings.filter(m => {
                 const mappingKey = `${m.class_name}-${m.faculty_id}-${m.subject}`;
-                if (existingMappings.has(mappingKey)) {
+                if (currentMappings.has(mappingKey)) {
                     skippedCount++;
                     return false;
                 }
-                existingMappings.add(mappingKey);
+                currentMappings.add(mappingKey);
                 return true;
             }).map((m, i) => ({...m, id: `gen-${Date.now()}-${i}`}));
 
@@ -163,13 +256,24 @@ export function ClassFacultyMappingTable({ data, setData, allFaculty }: ClassFac
                     </Button>
                 </div>
                 <div className="flex items-center justify-center p-4 bg-muted/50 rounded-lg shadow-inner">
-                    <div className="text-center">
-                        <h3 className="font-semibold">Manual Entry</h3>
-                        <p className="text-sm text-muted-foreground mb-4">Or, add a single mapping manually.</p>
-                        <Button onClick={handleAdd}>
-                            <PlusCircle className="mr-2 h-4 w-4" /> Add Mapping
-                        </Button>
-                    </div>
+                   <Dialog open={isAdding} onOpenChange={setIsAdding}>
+                        <DialogTrigger asChild>
+                            <div className="text-center">
+                                <h3 className="font-semibold">Manual Entry</h3>
+                                <p className="text-sm text-muted-foreground mb-4">Or, add a single mapping manually.</p>
+                                <Button>
+                                    <PlusCircle className="mr-2 h-4 w-4" /> Add Mapping
+                                </Button>
+                            </div>
+                        </DialogTrigger>
+                        <DialogContent>
+                             <DialogHeader>
+                                <DialogTitle>Add New Mapping</DialogTitle>
+                                <DialogDescription>Create a new class-faculty assignment.</DialogDescription>
+                            </DialogHeader>
+                            <MappingForm onSave={handleAddSave} onCancel={() => setIsAdding(false)} existingMappings={existingMappings} allFaculty={allFaculty}/>
+                        </DialogContent>
+                    </Dialog>
                 </div>
             </div>
 
