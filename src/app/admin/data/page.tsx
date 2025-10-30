@@ -8,6 +8,7 @@ import { FacultyTable } from "@/components/data-tables/faculty-table";
 import { QuestionsTable } from "@/components/data-tables/questions-table";
 import { ClassFacultyMappingTable } from "@/components/data-tables/class-faculty-mapping-table";
 import { BrainCircuit, Upload, Users, Briefcase, HelpCircle } from "lucide-react";
+import { BulkUpload } from "@/components/bulk-upload";
 
 export default function DataManagementPage() {
   return (
@@ -16,11 +17,12 @@ export default function DataManagementPage() {
         <h1 className="text-lg font-semibold md:text-2xl">Data Management</h1>
       </div>
       <Tabs defaultValue="students" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="students"><Users className="mr-2" />Students</TabsTrigger>
           <TabsTrigger value="faculty"><Briefcase className="mr-2" />Faculty</TabsTrigger>
           <TabsTrigger value="questions"><HelpCircle className="mr-2" />Questions</TabsTrigger>
           <TabsTrigger value="mappings"><BrainCircuit className="mr-2" />Mappings</TabsTrigger>
+          <TabsTrigger value="bulk-upload"><Upload className="mr-2" />Bulk Upload</TabsTrigger>
         </TabsList>
 
         <TabsContent value="students" className="mt-4">
@@ -35,9 +37,11 @@ export default function DataManagementPage() {
         <TabsContent value="mappings" className="mt-4">
             <ClassFacultyMappingTable />
         </TabsContent>
+        <TabsContent value="bulk-upload" className="mt-4">
+            <BulkUpload />
+        </TabsContent>
       </Tabs>
     </>
   );
 }
 
-    
