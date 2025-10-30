@@ -12,14 +12,14 @@ import { FacultyOutliersChart } from "@/components/charts/faculty-outliers";
 import { TrendChart } from "@/components/charts/trend-chart";
 import { FeedbackCriteriaChart } from '@/components/charts/feedback-criteria-chart';
 import { ResponseRateChart } from '@/components/charts/response-rate-chart';
-
-import type { Faculty } from '@/lib/types';
+import { ClassFacultyRatingsChart } from '@/components/charts/class-faculty-ratings-chart';
 
 
 export default function AdminDashboard() {
   const { feedback, faculty, mappings, students } = useData();
   const [selectedFacultyId, setSelectedFacultyId] = useState<string | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+  const [selectedClassName, setSelectedClassName] = useState<string | null>(null);
 
   // Memoize overall stats
   const { overallAverage, totalSubmissions } = useMemo(() => {
@@ -75,6 +75,12 @@ export default function AdminDashboard() {
     setSelectedFacultyId(facultyId);
     setSelectedSubject(null); // Reset subject selection
   }
+
+  const uniqueClassNames = useMemo(() => {
+    const classSet = new Set(mappings.map(m => m.class_name));
+    return Array.from(classSet).sort();
+  }, [mappings]);
+
 
   return (
     <>
@@ -154,6 +160,40 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      <Separator className="my-8" />
+
+       {/* Class Drilldown Section */}
+       <div>
+        <h2 className="text-xl font-semibold mb-4">Class-Specific View</h2>
+        <Card className="shadow-2xl">
+            <CardHeader>
+                <CardTitle>Select a Class</CardTitle>
+                <CardDescription>Choose a class to see a breakdown of faculty ratings within that class.</CardDescription>
+                <div className="pt-4 max-w-sm">
+                    <Select onValueChange={setSelectedClassName} value={selectedClassName || ''}>
+                        <SelectTrigger className="shadow-lg">
+                            <SelectValue placeholder="Select a class..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {uniqueClassNames.map(name => (
+                                <SelectItem key={name} value={name}>{name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            </CardHeader>
+
+            {selectedClassName && (
+                <CardContent>
+                    <Separator className="my-6" />
+                    <h3 className="text-lg font-semibold mb-2">Faculty Performance in {selectedClassName}</h3>
+                    <p className="text-muted-foreground mb-4">Average ratings for all subjects taught in this class.</p>
+                    <ClassFacultyRatingsChart className={selectedClassName} />
+                </CardContent>
+            )}
+        </Card>
       </div>
 
       <Separator className="my-8" />
@@ -256,5 +296,3 @@ export default function AdminDashboard() {
     </>
   )
 }
-
-    
