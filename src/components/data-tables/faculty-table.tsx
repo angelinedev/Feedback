@@ -16,6 +16,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { DataTable } from "./data-table"
 import type { Faculty } from "@/lib/types"
+import { useToast } from "@/hooks/use-toast"
 
 interface FacultyTableProps {
   data: Faculty[];
@@ -25,10 +26,10 @@ interface FacultyTableProps {
 const ActionsCell = ({ faculty, setData }: { faculty: Faculty; setData: React.Dispatch<React.SetStateAction<Faculty[]>> }) => {
     const handleEdit = () => {
         const newName = prompt("Enter new name:", faculty.name);
+        if (!newName) return;
         const newDept = prompt("Enter new department:", faculty.department);
-        if (newName && newDept) {
-            setData(prev => prev.map(f => f.id === faculty.id ? { ...f, name: newName, department: newDept } : f));
-        }
+        if (!newDept) return;
+        setData(prev => prev.map(f => f.id === faculty.id ? { ...f, name: newName, department: newDept } : f));
     };
     
     const handleDelete = () => {
@@ -74,17 +75,29 @@ const getColumns = (setData: React.Dispatch<React.SetStateAction<Faculty[]>>): C
 ];
 
 export function FacultyTable({ data, setData }: FacultyTableProps) {
+    const { toast } = useToast();
     const columns = React.useMemo(() => getColumns(setData), [setData]);
 
     const handleAdd = () => {
         const facultyId = prompt("Enter Faculty ID:");
+        if (!facultyId) return;
+
+        if (data.some(f => f.faculty_id === facultyId)) {
+            toast({
+                variant: 'destructive',
+                title: "Duplicate Faculty ID",
+                description: "A faculty member with this ID already exists.",
+            });
+            return;
+        }
+
         const name = prompt("Enter Name:");
+        if (!name) return;
         const department = prompt("Enter Department:");
+        if (!department) return;
         const password = "password123";
 
-        if(facultyId && name && department) {
-            setData(prev => [...prev, { id: facultyId, faculty_id: facultyId, name, department, password }]);
-        }
+        setData(prev => [...prev, { id: facultyId, faculty_id: facultyId, name, department, password }]);
     }
 
   return (

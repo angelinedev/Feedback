@@ -16,6 +16,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { DataTable } from "./data-table"
 import type { Student } from "@/lib/types"
+import { useToast } from "@/hooks/use-toast"
 
 interface StudentTableProps {
   data: Student[];
@@ -25,10 +26,10 @@ interface StudentTableProps {
 const ActionsCell = ({ student, setData }: { student: Student; setData: React.Dispatch<React.SetStateAction<Student[]>> }) => {
     const handleEdit = () => {
         const newName = prompt("Enter new name:", student.name);
+        if (!newName) return;
         const newClass = prompt("Enter new class:", student.class_name);
-        if (newName && newClass) {
-            setData(prev => prev.map(s => s.id === student.id ? { ...s, name: newName, class_name: newClass } : s));
-        }
+        if (!newClass) return;
+        setData(prev => prev.map(s => s.id === student.id ? { ...s, name: newName, class_name: newClass } : s));
     };
 
     const handleDelete = () => {
@@ -74,17 +75,29 @@ const getColumns = (setData: React.Dispatch<React.SetStateAction<Student[]>>): C
 ]
 
 export function StudentTable({ data, setData }: StudentTableProps) {
+    const { toast } = useToast();
     const columns = React.useMemo(() => getColumns(setData), [setData]);
     
     const handleAdd = () => {
         const regNum = prompt("Enter Register Number:");
+        if (!regNum) return;
+
+        if (data.some(s => s.register_number === regNum)) {
+            toast({
+                variant: 'destructive',
+                title: "Duplicate Register Number",
+                description: "A student with this register number already exists.",
+            });
+            return;
+        }
+
         const name = prompt("Enter Name:");
+        if (!name) return;
         const className = prompt("Enter Class Name:");
+        if (!className) return;
         const password = "password123";
 
-        if(regNum && name && className) {
-            setData(prev => [...prev, { id: regNum, register_number: regNum, name, class_name: className, password}]);
-        }
+        setData(prev => [...prev, { id: regNum, register_number: regNum, name, class_name: className, password}]);
     }
 
   return (

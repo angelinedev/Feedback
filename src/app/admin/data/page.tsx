@@ -46,33 +46,56 @@ export default function DataManagementPage() {
 
     setUploading(type);
     
-    // Simulate processing time
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     try {
-        const lines = data.trim().split('\n').slice(1); // Remove header
-        let count = 0;
+        const lines = data.trim().split('\n').slice(1);
+        let addedCount = 0;
+        let skippedCount = 0;
+
         if (type === 'students') {
-            const newStudents: Student[] = lines.map(line => {
+            const newStudents: Student[] = [];
+            const existingIds = new Set(students.map(s => s.register_number));
+            lines.forEach(line => {
                 const [register_number, name, password, class_name] = line.split(',');
-                return { id: register_number, register_number, name, password, class_name };
+                if (register_number && !existingIds.has(register_number)) {
+                    newStudents.push({ id: register_number, register_number, name, password, class_name });
+                    existingIds.add(register_number);
+                } else {
+                    skippedCount++;
+                }
             });
             setStudents(prev => [...prev, ...newStudents]);
-            count = newStudents.length;
+            addedCount = newStudents.length;
         } else if (type === 'faculty') {
-            const newFaculty: Faculty[] = lines.map(line => {
+            const newFaculty: Faculty[] = [];
+            const existingIds = new Set(faculty.map(f => f.faculty_id));
+            lines.forEach(line => {
                 const [faculty_id, name, password, department] = line.split(',');
-                return { id: faculty_id, faculty_id, name, password, department };
+                if (faculty_id && !existingIds.has(faculty_id)) {
+                    newFaculty.push({ id: faculty_id, faculty_id, name, password, department });
+                    existingIds.add(faculty_id);
+                } else {
+                    skippedCount++;
+                }
             });
             setFaculty(prev => [...prev, ...newFaculty]);
-            count = newFaculty.length;
+            addedCount = newFaculty.length;
         } else if (type === 'mappings') {
-            const newMappings: ClassFacultyMapping[] = lines.map(line => {
+            const newMappings: ClassFacultyMapping[] = [];
+            const existingMappings = new Set(mappings.map(m => `${m.class_name}-${m.faculty_id}-${m.subject}`));
+            lines.forEach(line => {
                 const [class_name, faculty_id, subject] = line.split(',');
-                return { id: `map-${Date.now()}-${Math.random()}`, class_name, faculty_id, subject };
+                const mappingKey = `${class_name}-${faculty_id}-${subject}`;
+                if (class_name && faculty_id && subject && !existingMappings.has(mappingKey)) {
+                    newMappings.push({ id: `map-${Date.now()}-${Math.random()}`, class_name, faculty_id, subject });
+                    existingMappings.add(mappingKey);
+                } else {
+                    skippedCount++;
+                }
             });
             setMappings(prev => [...prev, ...newMappings]);
-            count = newMappings.length;
+            addedCount = newMappings.length;
         }
 
         setPastedData(prev => ({ ...prev, [type]: "" })); // Clear textarea
@@ -80,7 +103,7 @@ export default function DataManagementPage() {
 
         toast({
           title: "Upload Successful",
-          description: `${count} records have been processed and added.`,
+          description: `${addedCount} records added. ${skippedCount} duplicate records were skipped.`,
         });
 
     } catch (error) {

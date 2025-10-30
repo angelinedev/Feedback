@@ -87,11 +87,25 @@ export function ClassFacultyMappingTable({ data, setData, allFaculty }: ClassFac
 
     const handleAdd = () => {
         const className = prompt("Enter Class Name:");
+        if (!className) return;
         const facultyId = prompt("Enter Faculty ID:");
+        if (!facultyId) return;
         const subject = prompt("Enter Subject:");
-        if (className && facultyId && subject) {
-            setData(prev => [...prev, { id: `map-${Date.now()}`, class_name: className, faculty_id: facultyId, subject }]);
+        if (!subject) return;
+
+        const isDuplicate = data.some(
+            m => m.class_name === className && m.faculty_id === facultyId && m.subject === subject
+        );
+
+        if (isDuplicate) {
+            toast({
+                variant: 'destructive',
+                title: "Duplicate Mapping",
+                description: "This exact mapping already exists.",
+            });
+            return;
         }
+        setData(prev => [...prev, { id: `map-${Date.now()}`, class_name: className, faculty_id: facultyId, subject }]);
     }
 
     const handleGenerate = async () => {
@@ -102,9 +116,22 @@ export function ClassFacultyMappingTable({ data, setData, allFaculty }: ClassFac
         setLoading(true);
         try {
             const output = await generateClassFacultyMapping({ prompt });
-            const newMappings = output.mappings.map((m, i) => ({...m, id: `gen-${Date.now()}-${i}`}));
+            
+            const existingMappings = new Set(data.map(m => `${m.class_name}-${m.faculty_id}-${m.subject}`));
+            let skippedCount = 0;
+
+            const newMappings = output.mappings.filter(m => {
+                const mappingKey = `${m.class_name}-${m.faculty_id}-${m.subject}`;
+                if (existingMappings.has(mappingKey)) {
+                    skippedCount++;
+                    return false;
+                }
+                existingMappings.add(mappingKey);
+                return true;
+            }).map((m, i) => ({...m, id: `gen-${Date.now()}-${i}`}));
+
             setData(prev => [...prev, ...newMappings]);
-            toast({ title: "Mappings Generated", description: `${newMappings.length} new mappings have been added to the table.` });
+            toast({ title: "Mappings Generated", description: `${newMappings.length} new mappings added. ${skippedCount} duplicates skipped.` });
 
         } catch (error) {
             console.error("Failed to generate mappings:", error);
