@@ -1,62 +1,63 @@
+
 "use client";
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { FeedbackForm } from '@/components/feedback-form';
-import type { ClassFacultyMapping, Faculty, Student } from '@/lib/types';
+import type { ClassFacultyMapping, Student, Feedback, Rating } from '@/lib/types';
 import { CheckCircle, Edit } from 'lucide-react';
-
-// In a real app, this would come from a database
-const MOCK_GLOBAL_FACULTY: Faculty[] = [
-  { id: '101', faculty_id: '101', name: 'Dr. Evelyn Reed', password: 'password123', department: 'Computer Science' },
-  { id: '102', faculty_id: '102', name: 'Prof. Samuel Green', password: 'password123', department: 'Computer Science' },
-  { id: '201', faculty_id: '201', name: 'Dr. Olivia White', password: 'password123', department: 'Electronics' },
-  { id: '202', faculty_id: '202', name: 'Prof. David Black', password: 'password123', department: 'Electronics' },
-];
-
-const MOCK_GLOBAL_MAPPINGS: ClassFacultyMapping[] = [
-    { id: 'map1', class_name: 'CS-A', faculty_id: '101', subject: 'Data Structures' },
-    { id: 'map2', class_name: 'CS-A', faculty_id: '102', subject: 'Algorithms' },
-    { id: 'map3', class_name: 'CS-B', faculty_id: '101', subject: 'Database Management' },
-    { id: 'map4', class_name: 'EC-A', faculty_id: '201', subject: 'Digital Circuits' },
-    { id: 'map5', class_name: 'EC-A', faculty_id: '202', subject: 'Signal Processing' },
-];
-
-const MOCK_GLOBAL_QUESTIONS = [
-  { id: 'q1', text: 'Clarity of explanation', order: 1 },
-  { id: 'q2', text: 'Punctuality and regularity', order: 2 },
-  { id: 'q3', text: 'Subject knowledge', order: 3 },
-  { id: 'q4', text: 'Interaction and engagement with students', order: 4 },
-  { id: 'q5', text: 'Quality of learning materials provided', order: 5 },
-  { id: 'q6', text: 'Fairness in evaluation', order: 6 },
-];
+import { useData } from '@/components/data-provider';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
-  const [submittedFeedback, setSubmittedFeedback] = useState<string[]>([]);
+  const { faculty, mappings, questions, feedback, setFeedback } = useData();
+  
   const [selectedMapping, setSelectedMapping] = useState<(ClassFacultyMapping & { facultyName: string }) | null>(null);
   
   const student = user?.details as Student | undefined;
 
   const subjectsForStudent = useMemo(() => {
     if (!student?.class_name) return [];
-    return MOCK_GLOBAL_MAPPINGS
+    return mappings
       .filter(mapping => mapping.class_name === student.class_name)
       .map(mapping => {
-        const faculty = MOCK_GLOBAL_FACULTY.find(f => f.faculty_id === mapping.faculty_id);
+        const facultyMember = faculty.find(f => f.faculty_id === mapping.faculty_id);
         return {
           ...mapping,
-          facultyName: faculty?.name || 'Unknown Faculty'
+          facultyName: facultyMember?.name || 'Unknown Faculty'
         };
       });
-  }, [student?.class_name]);
+  }, [student?.class_name, mappings, faculty]);
 
-  const handleFeedbackSubmit = (facultyId: string, subject: string) => {
-    const key = `${facultyId}-${subject}`;
-    setSubmittedFeedback(prev => [...prev, key]);
+  const submittedFeedbackKeys = useMemo(() => {
+    if (!student) return new Set();
+    return new Set(
+      feedback
+        .filter(f => f.student_id === student.id)
+        .map(f => `${f.faculty_id}-${f.subject}`)
+    );
+  }, [feedback, student]);
+
+
+  const handleFeedbackSubmit = (facultyId: string, subject: string, ratings: Rating[], comment: string) => {
+    if (!student) return;
+
+    const newFeedback: Feedback = {
+      id: `fb-${Date.now()}`,
+      student_id: student.id,
+      faculty_id: facultyId,
+      class_name: student.class_name,
+      subject: subject,
+      ratings: ratings,
+      comment: comment,
+      semester: 'Spring 2024', // This could be dynamic in a real app
+      submitted_at: new Date(),
+    };
+    
+    setFeedback(prev => [...prev, newFeedback]);
     setSelectedMapping(null);
   };
   
@@ -69,7 +70,7 @@ export default function StudentDashboard() {
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {subjectsForStudent.map(mapping => {
-          const isSubmitted = submittedFeedback.includes(`${mapping.faculty_id}-${mapping.subject}`);
+          const isSubmitted = submittedFeedbackKeys.has(`${mapping.faculty_id}-${mapping.subject}`);
           return (
             <Card key={mapping.id} className="shadow-2xl flex flex-col transition-all duration-300 hover:border-primary">
               <CardHeader>
@@ -107,7 +108,7 @@ export default function StudentDashboard() {
                           </SheetDescription>
                         </SheetHeader>
                         <FeedbackForm
-                          questions={MOCK_GLOBAL_QUESTIONS}
+                          questions={questions}
                           facultyId={selectedMapping.faculty_id}
                           subject={selectedMapping.subject}
                           onSubmit={handleFeedbackSubmit}

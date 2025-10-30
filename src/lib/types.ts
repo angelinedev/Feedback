@@ -1,3 +1,4 @@
+
 export interface Student {
   id: string; // register_number
   register_number: string;
@@ -9,7 +10,7 @@ export interface Student {
 export interface Faculty {
   id: string; // faculty_id
   faculty_id: string;
-  name: string;
+  name:string;
   password?: string;
   department: string;
 }
@@ -27,13 +28,18 @@ export interface ClassFacultyMapping {
   subject: string;
 }
 
+export interface Rating {
+  question_id: string;
+  rating: number;
+}
+
 export interface Feedback {
   id: string;
   student_id: string;
   faculty_id: string;
   class_name: string;
   subject: string;
-  ratings: { question_id: string; rating: number }[];
+  ratings: Rating[];
   comment: string | null;
   semester: string;
   submitted_at: Date;

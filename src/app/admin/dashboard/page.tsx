@@ -1,9 +1,40 @@
+
+"use client";
+
 import { AvgRatingByDeptChart } from "@/components/charts/avg-rating-by-dept";
 import { FacultyOutliersChart } from "@/components/charts/faculty-outliers";
 import { TrendChart } from "@/components/charts/trend-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useData } from "@/components/data-provider";
+import { useMemo } from "react";
 
 export default function AdminDashboard() {
+  const { feedback } = useData();
+
+  const { overallAverage, totalSubmissions } = useMemo(() => {
+    if (feedback.length === 0) {
+      return { overallAverage: "N/A", totalSubmissions: 0 };
+    }
+
+    let totalRating = 0;
+    let ratingCount = 0;
+
+    feedback.forEach(fb => {
+      fb.ratings.forEach(r => {
+        totalRating += r.rating;
+        ratingCount++;
+      });
+    });
+
+    const average = ratingCount > 0 ? (totalRating / ratingCount).toFixed(1) : "N/A";
+    
+    return {
+      overallAverage: average,
+      totalSubmissions: feedback.length,
+    };
+  }, [feedback]);
+
+
   return (
     <>
       <div className="flex items-center">
@@ -23,18 +54,18 @@ export default function AdminDashboard() {
             <Card className="shadow-2xl" x-chunk="dashboard-05-chunk-1">
               <CardHeader className="pb-2">
                 <CardDescription>Overall Average Rating</CardDescription>
-                <CardTitle className="text-4xl text-accent">4.3</CardTitle>
+                <CardTitle className="text-4xl text-accent">{overallAverage}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-xs text-muted-foreground">
-                  +2.5% from last semester
+                  Based on all feedback
                 </div>
               </CardContent>
             </Card>
             <Card className="shadow-2xl" x-chunk="dashboard-05-chunk-2">
               <CardHeader className="pb-2">
                 <CardDescription>Total Feedback Submitted</CardDescription>
-                <CardTitle className="text-4xl">1,250</CardTitle>
+                <CardTitle className="text-4xl">{totalSubmissions}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-xs text-muted-foreground">

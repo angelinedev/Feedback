@@ -1,7 +1,9 @@
+
 "use client";
 
 import React, { createContext, useState, ReactNode, useContext } from 'react';
-import type { Student, Faculty, ClassFacultyMapping } from '@/lib/types';
+import type { Student, Faculty, ClassFacultyMapping, Feedback, Question } from '@/lib/types';
+import { mockQuestions as initialMockQuestions } from '@/lib/mock-data';
 
 interface DataContextType {
   students: Student[];
@@ -10,6 +12,10 @@ interface DataContextType {
   setFaculty: React.Dispatch<React.SetStateAction<Faculty[]>>;
   mappings: ClassFacultyMapping[];
   setMappings: React.Dispatch<React.SetStateAction<ClassFacultyMapping[]>>;
+  feedback: Feedback[];
+  setFeedback: React.Dispatch<React.SetStateAction<Feedback[]>>;
+  questions: Question[];
+  setQuestions: React.Dispatch<React.SetStateAction<Question[]>>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -18,6 +24,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [students, setStudents] = useState<Student[]>([]);
   const [faculty, setFaculty] = useState<Faculty[]>([]);
   const [mappings, setMappings] = useState<ClassFacultyMapping[]>([]);
+  const [feedback, setFeedback] = useState<Feedback[]>([]);
+  const [questions, setQuestions] = useState<Question[]>(initialMockQuestions);
+
 
   const value = {
     students,
@@ -26,6 +35,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setFaculty,
     mappings,
     setMappings,
+    feedback,
+    setFeedback,
+    questions,
+    setQuestions
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

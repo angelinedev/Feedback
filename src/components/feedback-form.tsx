@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -9,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { StarRating } from "@/components/star-rating";
 import { useToast } from "@/hooks/use-toast";
-import type { Question } from "@/lib/types";
+import type { Question, Rating } from "@/lib/types";
 import { Loader2 } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
 
@@ -17,39 +18,52 @@ interface FeedbackFormProps {
   questions: Question[];
   facultyId: string;
   subject: string;
-  onSubmit: (facultyId: string, subject: string) => void;
+  onSubmit: (facultyId: string, subject: string, ratings: Rating[], comment: string) => void;
 }
 
 export function FeedbackForm({ questions, facultyId, subject, onSubmit }: FeedbackFormProps) {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
+  const ratingSchema = z.record(z.number().min(1, "Please provide a rating for every question."));
+  
   const schema = z.object({
-    ratings: z.record(z.number().min(1, "Please provide a rating for every question.")),
+    ratings: ratingSchema,
     comment: z.string().optional(),
   });
-  
-  const defaultValues = {
-    ratings: questions.reduce((acc, q) => ({ ...acc, [q.id]: 0 }), {}),
-    comment: "",
-  };
 
+  // Ensure all questions have a default rating of 0
+  const defaultRatings = questions.reduce((acc, q) => {
+    acc[q.id] = 0;
+    return acc;
+  }, {} as Record<string, number>);
+  
   const { control, handleSubmit, formState: { errors, isValid } } = useForm({
     resolver: zodResolver(schema),
-    defaultValues,
+    defaultValues: {
+      ratings: defaultRatings,
+      comment: "",
+    },
     mode: "onChange"
   });
 
   const onFormSubmit = (data: z.infer<typeof schema>) => {
     setLoading(true);
+    
+    // Convert ratings object to array
+    const ratingsArray: Rating[] = Object.entries(data.ratings).map(([question_id, rating]) => ({
+      question_id,
+      rating,
+    }));
+    
     // Simulate API call
     setTimeout(() => {
-      console.log("Feedback submitted:", { ...data, facultyId, subject });
+      console.log("Feedback submitted:", { facultyId, subject, ratings: ratingsArray, comment: data.comment });
       toast({
         title: "Feedback Submitted!",
         description: "Thank you for your valuable input.",
       });
-      onSubmit(facultyId, subject);
+      onSubmit(facultyId, subject, ratingsArray, data.comment || "");
       setLoading(false);
     }, 1000);
   };
@@ -73,7 +87,7 @@ export function FeedbackForm({ questions, facultyId, subject, onSubmit }: Feedba
               />
               {errors.ratings?.[question.id] && (
                 <p className="text-sm text-destructive mt-1">
-                  {errors.ratings[question.id]?.message}
+                  This field is required.
                 </p>
               )}
             </div>

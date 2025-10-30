@@ -1,8 +1,9 @@
+
 "use client"
 
-import { Bar, BarChart, CartesianGrid, XAxis, ResponsiveContainer } from "recharts"
+import { Bar, BarChart, CartesianGrid, XAxis, ResponsiveContainer, YAxis } from "recharts"
 import type { Feedback } from "@/lib/types";
-import { mockQuestions } from "@/lib/mock-data";
+import { useData } from "../data-provider";
 
 import {
   ChartContainer,
@@ -16,10 +17,11 @@ interface FeedbackCriteriaChartProps {
 }
 
 export function FeedbackCriteriaChart({ feedback }: FeedbackCriteriaChartProps) {
+  const { questions } = useData();
 
   const chartData = useMemo(() => {
     if (feedback.length === 0) {
-      return mockQuestions.map(q => ({ name: q.text, averageRating: 0, fill: "hsl(var(--chart-1))" }));
+      return questions.map(q => ({ name: q.text, averageRating: 0, fill: "hsl(var(--muted))" }));
     }
 
     const ratingSums: { [key: string]: { total: number; count: number } } = {};
@@ -34,16 +36,20 @@ export function FeedbackCriteriaChart({ feedback }: FeedbackCriteriaChartProps) 
         });
     });
 
-    return mockQuestions.map(q => {
+    return questions.map(q => {
         const sum = ratingSums[q.id];
+        const averageRating = sum ? sum.total / sum.count : 0;
         return {
             name: q.text,
-            averageRating: sum ? sum.total / sum.count : 0,
-            fill: sum ? (sum.total/sum.count >= 4 ? "hsl(var(--chart-1))" : "hsl(var(--chart-2))") : "hsl(var(--muted))"
+            averageRating: parseFloat(averageRating.toFixed(2)),
+            fill: averageRating >= 4 ? "hsl(var(--chart-1))" : averageRating > 0 ? "hsl(var(--chart-2))" : "hsl(var(--muted))"
         };
     }).sort((a,b) => a.name.localeCompare(b.name));
-  }, [feedback]);
+  }, [feedback, questions]);
 
+  if(feedback.length === 0) {
+    return <div className="text-center text-muted-foreground p-8">No feedback has been submitted for this subject yet.</div>
+  }
 
   return (
     <ChartContainer config={{}} className="min-h-[300px] w-full">
@@ -56,7 +62,9 @@ export function FeedbackCriteriaChart({ feedback }: FeedbackCriteriaChartProps) 
                 axisLine={false}
                 tickMargin={8}
                 tickFormatter={(value) => value.split(' ')[0]}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
             />
+            <YAxis domain={[0, 5]} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}/>
             <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
             <Bar dataKey="averageRating" radius={8} />
         </BarChart>
