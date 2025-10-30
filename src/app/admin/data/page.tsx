@@ -1,7 +1,6 @@
 
 "use client";
 
-import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StudentTable } from "@/components/data-tables/student-table";
 import { FacultyTable } from "@/components/data-tables/faculty-table";
@@ -44,4 +43,3 @@ export default function DataManagementPage() {
     </>
   );
 }
-
