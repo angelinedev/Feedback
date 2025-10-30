@@ -29,6 +29,47 @@ const MOCK_STUDENTS_FROM_FILE: Student[] = [
     { id: '2403310914821010', register_number: '2403310914821010', name: 'CHANDREAMOULEESWARAN M', password: 'password', class_name: 'AIML-2' },
     { id: '2403310914822011', register_number: '2403310914822011', name: 'GOPIKA S', password: 'password', class_name: 'AIML-2' },
     { id: '2402210014832012', register_number: '2402210014832012', name: 'HARINI R', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821013', register_number: '2403310914821013', name: 'HARISH R', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821014', register_number: '2403310914821014', name: 'HEMANTH KUMAR J', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821015', register_number: '2403310914821015', name: 'IMRAN S', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914822016', register_number: '2403310914822016', name: 'INDHUJA S', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914822017', register_number: '2403310914822017', name: 'JANANI K', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821018', register_number: '2403310914821018', name: 'JANARTHANAN M', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821019', register_number: '2403310914821019', name: 'JASWANTHRAM R', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821020', register_number: '2403310914821020', name: 'JAYAPRAKASH S', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821021', register_number: '2403310914821021', name: 'JEEVA S', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821022', register_number: '2403310914821022', name: 'JEEVANANTHAM K', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821023', register_number: '2403310914821023', name: 'KABILESH S', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821024', register_number: '2403310914821024', name: 'KAMALESH J', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914822025', register_number: '2403310914822025', name: 'KANIMOZHI M', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821026', register_number: '2403310914821026', name: 'KARTHICK RAJA S', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821027', register_number: '2403310914821027', name: 'KARTHIKEYAN G', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914822028', register_number: '2403310914822028', name: 'KAVIYA SRI R', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821029', register_number: '2403310914821029', name: 'KAViyarasan V', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821030', register_number: '2403310914821030', name: 'LOKESH G', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821031', register_number: '2403310914821031', name: 'LOKESH V', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821032', register_number: '2403310914821032', name: 'MADHAVAN B', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914822033', register_number: '2403310914822033', name: 'MADHUMITHA S', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914822034', register_number: '2403310914822034', name: 'MONIKA V', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821035', register_number: '2403310914821035', name: 'MUKESH S', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821036', register_number: '2403310914821036', name: 'NAVEEN B', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821037', register_number: '2403310914821037', name: 'NAVEEN KUMAR S', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914822038', register_number: '2403310914822038', name: 'NIVetha S', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821039', register_number: '2403310914821039', name: 'PRAVEEN KUMAR S', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821040', register_number: '2403310914821040', name: 'RAGAVAN S', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821041', register_number: '2403310914821041', name: 'RAHUL E', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821042', register_number: '2403310914821042', name: 'RAHUL S', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821043', register_number: '2403310914821043', name: 'RANJITH S', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914822044', register_number: '2403310914822044', name: 'RESHMA S', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821045', register_number: '2403310914821045', name: 'ROHITH V', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821046', register_number: '2403310914821046', name: 'SANJAY S', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821047', register_number: '2403310914821047', name: 'SANTHOSH S', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821048', register_number: '2403310914821048', name: 'SARAN S', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821049', register_number: '2403310914821049', name: 'SATHISHKUMAR S', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821050', register_number: '2403310914821050', name: 'SHAKTHIVEL M', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914822051', register_number: '2403310914822051', name: 'SHALINI S', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821052', register_number: '2403310914821052', name: 'SIVABALAN K', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914822053', register_number: '2403310914822053', name: 'SNEHA G', password: 'password', class_name: 'AIML-2' },
 ];
 
 export default function DataManagementPage() {
@@ -168,3 +209,5 @@ export default function DataManagementPage() {
     </>
   );
 }
+
+    
