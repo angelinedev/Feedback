@@ -1,24 +1,24 @@
 'use client';
 
 import { firebaseConfig, isFirebaseConfigValid } from '@/firebase/config';
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { initializeApp, getApps, getApp, FirebaseApp, FirebaseOptions } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
-export function initializeFirebase() {
+export function initializeFirebase(config: FirebaseOptions) {
   if (getApps().length > 0) {
     return getSdks(getApp());
   }
 
   // Throw an error if the config is not valid to prevent Firebase errors.
-  if (!isFirebaseConfigValid()) {
+  if (!isFirebaseConfigValid(config)) {
     console.error("Firebase config is not valid. Please check your .env.local file and ensure all NEXT_PUBLIC_FIREBASE_ variables are set.");
-    throw new Error("Firebase configuration is missing or invalid. Please check your environment variables.");
+    throw new Error("Firebase configuration is missing or invalid. Please check your environment variables and restart the server.");
   }
 
   // Initialize with the config object. This is the most reliable way.
-  const firebaseApp = initializeApp(firebaseConfig);
+  const firebaseApp = initializeApp(config);
 
   return getSdks(firebaseApp);
 }
