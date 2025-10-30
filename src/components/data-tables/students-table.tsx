@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -15,8 +16,10 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { DataTable } from "./data-table"
 import type { Student } from "@/lib/types"
-import { mockStudents } from "@/lib/mock-data"
 
+interface StudentTableProps {
+  data: Student[];
+}
 
 const ActionsCell = ({ student }: { student: Student }) => {
     // Add logic for Edit/Delete here
@@ -59,10 +62,7 @@ const columns: ColumnDef<Student>[] = [
   },
 ]
 
-export function StudentTable() {
-    const [data, setData] = React.useState<Student[]>(mockStudents);
-
-    // Logic for adding a new student
+export function StudentTable({ data }: StudentTableProps) {
     const handleAdd = () => {
         alert("Opening form to add new student...")
     }

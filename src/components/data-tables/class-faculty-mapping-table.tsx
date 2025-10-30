@@ -1,9 +1,10 @@
+
 "use client"
 
 import * as React from "react"
 import { ColumnDef } from "@tanstack/react-table"
 import { MoreHorizontal, PlusCircle, Sparkles, Loader2 } from "lucide-react"
-import { generateClassFacultyMapping, type GenerateClassFacultyMappingOutput } from "@/ai/flows/generate-class-faculty-mapping"
+import { generateClassFacultyMapping } from "@/ai/flows/generate-class-faculty-mapping"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -16,10 +17,14 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { DataTable } from "./data-table"
 import type { ClassFacultyMapping } from "@/lib/types"
-import { mockClassFacultyMapping, mockFaculty } from "@/lib/mock-data"
+import { mockFaculty } from "@/lib/mock-data"
 import { Textarea } from "../ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 
+interface ClassFacultyMappingTableProps {
+  data: ClassFacultyMapping[];
+  setData: React.Dispatch<React.SetStateAction<ClassFacultyMapping[]>>;
+}
 
 const ActionsCell = ({ mapping }: { mapping: ClassFacultyMapping }) => {
     // Add logic for Edit/Delete here
@@ -66,8 +71,7 @@ const columns: ColumnDef<ClassFacultyMapping>[] = [
   },
 ]
 
-export function ClassFacultyMappingTable() {
-    const [data, setData] = React.useState<ClassFacultyMapping[]>(mockClassFacultyMapping);
+export function ClassFacultyMappingTable({ data, setData }: ClassFacultyMappingTableProps) {
     const [prompt, setPrompt] = React.useState<string>("");
     const [loading, setLoading] = React.useState<boolean>(false);
     const { toast } = useToast();

@@ -12,10 +12,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { mockStudents, mockFaculty, mockClassFacultyMapping, mockQuestions } from "@/lib/mock-data";
+import type { Student, Faculty, ClassFacultyMapping, Question } from "@/lib/types";
 
 type UploadType = 'students' | 'faculty' | 'mappings';
 
 export default function DataManagementPage() {
+  const [students, setStudents] = useState<Student[]>(mockStudents);
+  const [faculty, setFaculty] = useState<Faculty[]>(mockFaculty);
+  const [mappings, setMappings] = useState<ClassFacultyMapping[]>(mockClassFacultyMapping);
+  
   const [selectedFiles, setSelectedFiles] = useState<Record<UploadType, File | null>>({
     students: null,
     faculty: null,
@@ -42,8 +48,20 @@ export default function DataManagementPage() {
 
     setUploading(type);
     
-    // Simulate API call for upload
+    // Simulate API call and data processing
     await new Promise(resolve => setTimeout(resolve, 1500));
+
+    // Simulate adding data from the uploaded file
+    if (type === 'students') {
+      const newStudent: Student = { id: `new-${Date.now()}`, register_number: `${Date.now()}`.slice(-10), name: 'New Student', class_name: 'CS-B', password: 'password123' };
+      setStudents(prev => [...prev, newStudent]);
+    } else if (type === 'faculty') {
+      const newFaculty: Faculty = { id: `new-${Date.now()}`, faculty_id: `${Date.now()}`.slice(-4), name: 'New Faculty', department: 'Mechanical', password: 'password123' };
+      setFaculty(prev => [...prev, newFaculty]);
+    } else if (type === 'mappings') {
+      const newMapping: ClassFacultyMapping = { id: `new-${Date.now()}`, class_name: 'CS-B', faculty_id: '102', subject: 'New Subject' };
+      setMappings(prev => [...prev, newMapping]);
+    }
 
     // Reset file input and state
     setSelectedFiles(prev => ({ ...prev, [type]: null }));
@@ -56,7 +74,7 @@ export default function DataManagementPage() {
 
     toast({
       title: "Upload Successful",
-      description: `${file.name} has been uploaded and is being processed.`,
+      description: `${file.name} has been processed and data has been added.`,
     });
   };
 
@@ -75,16 +93,16 @@ export default function DataManagementPage() {
         </TabsList>
 
         <TabsContent value="students" className="mt-4">
-          <StudentTable />
+          <StudentTable data={students} />
         </TabsContent>
         <TabsContent value="faculty" className="mt-4">
-          <FacultyTable />
+          <FacultyTable data={faculty} />
         </TabsContent>
         <TabsContent value="questions" className="mt-4">
           <QuestionsTable />
         </TabsContent>
         <TabsContent value="mappings" className="mt-4">
-            <ClassFacultyMappingTable />
+            <ClassFacultyMappingTable data={mappings} setData={setMappings} />
         </TabsContent>
         <TabsContent value="bulk-upload" className="mt-4">
             <Card className="shadow-2xl">
@@ -99,7 +117,7 @@ export default function DataManagementPage() {
                         <pre className="text-sm bg-background p-3 rounded-md overflow-x-auto mb-6"><code>register_number,name,password,class_name</code></pre>
                         <div className="mt-auto space-y-3">
                            <Input id="students-file" type="file" accept=".csv,.xlsx,.xls" onChange={(e) => handleFileChange(e, 'students')}/>
-                           <Button className="w-full" onClick={() => handleUpload('students')} disabled={uploading === 'students'}>
+                           <Button className="w-full" onClick={() => handleUpload('students')} disabled={uploading === 'students' || !selectedFiles.students}>
                             {uploading === 'students' ? <Loader2 className="mr-2 animate-spin"/> : <FileUp className="mr-2"/>}
                             Upload Students
                            </Button>
@@ -111,7 +129,7 @@ export default function DataManagementPage() {
                         <pre className="text-sm bg-background p-3 rounded-md overflow-x-auto mb-6"><code>faculty_id,name,password,department</code></pre>
                         <div className="mt-auto space-y-3">
                            <Input id="faculty-file" type="file" accept=".csv,.xlsx,.xls" onChange={(e) => handleFileChange(e, 'faculty')} />
-                           <Button className="w-full" onClick={() => handleUpload('faculty')} disabled={uploading === 'faculty'}>
+                           <Button className="w-full" onClick={() => handleUpload('faculty')} disabled={uploading === 'faculty' || !selectedFiles.faculty}>
                             {uploading === 'faculty' ? <Loader2 className="mr-2 animate-spin"/> : <FileUp className="mr-2"/>}
                             Upload Faculty
                            </Button>
@@ -123,7 +141,7 @@ export default function DataManagementPage() {
                         <pre className="text-sm bg-background p-3 rounded-md overflow-x-auto mb-6"><code>class_name,faculty_id,subject</code></pre>
                         <div className="mt-auto space-y-3">
                            <Input id="mappings-file" type="file" accept=".csv,.xlsx,.xls" onChange={(e) => handleFileChange(e, 'mappings')} />
-                           <Button className="w-full" onClick={() => handleUpload('mappings')} disabled={uploading === 'mappings'}>
+                           <Button className="w-full" onClick={() => handleUpload('mappings')} disabled={uploading === 'mappings' || !selectedFiles.mappings}>
                             {uploading === 'mappings' ? <Loader2 className="mr-2 animate-spin"/> : <FileUp className="mr-2"/>}
                             Upload Mappings
                            </Button>
