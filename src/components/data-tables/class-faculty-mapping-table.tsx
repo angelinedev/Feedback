@@ -83,15 +83,8 @@ export function ClassFacultyMappingTable() {
         }
         setLoading(true);
         try {
-            // This is a mock implementation. In a real scenario, this would call the AI flow.
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            const mockOutput: GenerateClassFacultyMappingOutput = {
-                mappings: [
-                    { class_name: 'CS-C', faculty_id: '102', subject: 'Advanced Algorithms' },
-                    { class_name: 'EC-B', faculty_id: '201', subject: 'VLSI Design' }
-                ]
-            };
-            const newMappings = mockOutput.mappings.map((m, i) => ({...m, id: `gen-${Date.now()}-${i}`}));
+            const output = await generateClassFacultyMapping({ prompt });
+            const newMappings = output.mappings.map((m, i) => ({...m, id: `gen-${Date.now()}-${i}`}));
             setData(prev => [...prev, ...newMappings]);
             toast({ title: "Mappings Generated", description: `${newMappings.length} new mappings have been added to the table.` });
 
