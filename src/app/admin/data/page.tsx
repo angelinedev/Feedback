@@ -1,14 +1,65 @@
+
+"use client";
+
+import { useState, type ChangeEvent } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StudentTable } from "@/components/data-tables/students-table";
 import { FacultyTable } from "@/components/data-tables/faculty-table";
 import { QuestionsTable } from "@/components/data-tables/questions-table";
 import { ClassFacultyMappingTable } from "@/components/data-tables/class-faculty-mapping-table";
-import { BrainCircuit, Upload, Users, Briefcase, HelpCircle, FileUp } from "lucide-react";
+import { BrainCircuit, Upload, Users, Briefcase, HelpCircle, FileUp, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+
+type UploadType = 'students' | 'faculty' | 'mappings';
 
 export default function DataManagementPage() {
+  const [selectedFiles, setSelectedFiles] = useState<Record<UploadType, File | null>>({
+    students: null,
+    faculty: null,
+    mappings: null,
+  });
+  const [uploading, setUploading] = useState<UploadType | null>(null);
+  const { toast } = useToast();
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>, type: UploadType) => {
+    const file = e.target.files?.[0] || null;
+    setSelectedFiles(prev => ({ ...prev, [type]: file }));
+  };
+
+  const handleUpload = async (type: UploadType) => {
+    const file = selectedFiles[type];
+    if (!file) {
+      toast({
+        variant: "destructive",
+        title: "No file selected",
+        description: `Please select a file to upload for ${type}.`,
+      });
+      return;
+    }
+
+    setUploading(type);
+    
+    // Simulate API call for upload
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    // Reset file input and state
+    setSelectedFiles(prev => ({ ...prev, [type]: null }));
+    const fileInput = document.getElementById(`${type}-file`) as HTMLInputElement;
+    if (fileInput) {
+        fileInput.value = "";
+    }
+    
+    setUploading(null);
+
+    toast({
+      title: "Upload Successful",
+      description: `${file.name} has been uploaded and is being processed.`,
+    });
+  };
+
   return (
     <>
       <div className="flex items-center">
@@ -39,7 +90,7 @@ export default function DataManagementPage() {
             <Card className="shadow-2xl">
                 <CardHeader>
                     <CardTitle>Bulk Data Upload</CardTitle>
-                    <CardDescription>Upload CSV files to add multiple records at once. Please ensure the file headers match the specified format.</CardDescription>
+                    <CardDescription>Upload CSV or Excel files to add multiple records at once. Please ensure the file headers match the specified format.</CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-8 md:grid-cols-3">
                     <div className="p-6 bg-muted/50 rounded-lg shadow-inner flex flex-col">
@@ -47,8 +98,11 @@ export default function DataManagementPage() {
                         <p className="text-sm text-muted-foreground mb-4">Header format:</p>
                         <pre className="text-sm bg-background p-3 rounded-md overflow-x-auto mb-6"><code>register_number,name,password,class_name</code></pre>
                         <div className="mt-auto space-y-3">
-                           <Input id="students-file" type="file" accept=".csv" />
-                           <Button className="w-full"><FileUp className="mr-2"/>Upload Students</Button>
+                           <Input id="students-file" type="file" accept=".csv,.xlsx,.xls" onChange={(e) => handleFileChange(e, 'students')}/>
+                           <Button className="w-full" onClick={() => handleUpload('students')} disabled={uploading === 'students'}>
+                            {uploading === 'students' ? <Loader2 className="mr-2 animate-spin"/> : <FileUp className="mr-2"/>}
+                            Upload Students
+                           </Button>
                         </div>
                     </div>
                     <div className="p-6 bg-muted/50 rounded-lg shadow-inner flex flex-col">
@@ -56,8 +110,11 @@ export default function DataManagementPage() {
                         <p className="text-sm text-muted-foreground mb-4">Header format:</p>
                         <pre className="text-sm bg-background p-3 rounded-md overflow-x-auto mb-6"><code>faculty_id,name,password,department</code></pre>
                         <div className="mt-auto space-y-3">
-                           <Input id="faculty-file" type="file" accept=".csv" />
-                           <Button className="w-full"><FileUp className="mr-2"/>Upload Faculty</Button>
+                           <Input id="faculty-file" type="file" accept=".csv,.xlsx,.xls" onChange={(e) => handleFileChange(e, 'faculty')} />
+                           <Button className="w-full" onClick={() => handleUpload('faculty')} disabled={uploading === 'faculty'}>
+                            {uploading === 'faculty' ? <Loader2 className="mr-2 animate-spin"/> : <FileUp className="mr-2"/>}
+                            Upload Faculty
+                           </Button>
                         </div>
                     </div>
                     <div className="p-6 bg-muted/50 rounded-lg shadow-inner flex flex-col">
@@ -65,8 +122,11 @@ export default function DataManagementPage() {
                         <p className="text-sm text-muted-foreground mb-4">Header format:</p>
                         <pre className="text-sm bg-background p-3 rounded-md overflow-x-auto mb-6"><code>class_name,faculty_id,subject</code></pre>
                         <div className="mt-auto space-y-3">
-                           <Input id="mappings-file" type="file" accept=".csv" />
-                           <Button className="w-full"><FileUp className="mr-2"/>Upload Mappings</Button>
+                           <Input id="mappings-file" type="file" accept=".csv,.xlsx,.xls" onChange={(e) => handleFileChange(e, 'mappings')} />
+                           <Button className="w-full" onClick={() => handleUpload('mappings')} disabled={uploading === 'mappings'}>
+                            {uploading === 'mappings' ? <Loader2 className="mr-2 animate-spin"/> : <FileUp className="mr-2"/>}
+                            Upload Mappings
+                           </Button>
                         </div>
                     </div>
                 </CardContent>
