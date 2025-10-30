@@ -60,7 +60,7 @@ export function Header({ children, showNav = false }: { children?: React.ReactNo
             <div className="flex flex-col space-y-1">
               <p className="text-sm font-medium leading-none">{user?.name}</p>
               <p className="text-xs leading-none text-muted-foreground">
-                {user?.role.charAt(0).toUpperCase() + user?.role.slice(1)}
+                {user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : ''}
               </p>
             </div>
           </DropdownMenuLabel>
