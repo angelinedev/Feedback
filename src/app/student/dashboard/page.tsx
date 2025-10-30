@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from 'react';
@@ -10,14 +11,10 @@ import type { ClassFacultyMapping, Student, Feedback, Rating } from '@/lib/types
 import { CheckCircle, Edit, KeyRound } from 'lucide-react';
 import { useData } from '@/components/data-provider';
 import { ChangePasswordDialog } from '@/components/change-password-dialog';
-import { useFirebase } from '@/firebase';
-import { doc, setDoc } from 'firebase/firestore';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
-  const { faculty, mappings, questions, feedback } = useData();
-  const { firestore } = useFirebase();
-  
+  const { faculty, mappings, questions, addFeedback, feedback } = useData();
   const [selectedMapping, setSelectedMapping] = useState<(ClassFacultyMapping & { facultyName: string }) | null>(null);
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   
@@ -46,12 +43,10 @@ export default function StudentDashboard() {
   }, [feedback, student]);
 
 
-  const handleFeedbackSubmit = async (facultyId: string, subject: string, ratings: Rating[], comment: string) => {
+  const handleFeedbackSubmit = (facultyId: string, subject: string, ratings: Rating[], comment: string) => {
     if (!student) return;
-
-    const feedbackId = `fb-${Date.now()}`;
     const newFeedback: Feedback = {
-      id: feedbackId,
+      id: `fb-${Date.now()}`,
       student_id: student.id,
       faculty_id: facultyId,
       class_name: student.class_name,
@@ -61,13 +56,8 @@ export default function StudentDashboard() {
       semester: 'Spring 2024', // This could be dynamic in a real app
       submitted_at: new Date(),
     };
-    
-    try {
-        await setDoc(doc(firestore, "feedback", feedbackId), newFeedback);
-        setSelectedMapping(null);
-    } catch(error) {
-        console.error("Failed to submit feedback", error);
-    }
+    addFeedback(newFeedback);
+    setSelectedMapping(null);
   };
   
   return (
@@ -143,3 +133,5 @@ export default function StudentDashboard() {
     </div>
   );
 }
+
+    

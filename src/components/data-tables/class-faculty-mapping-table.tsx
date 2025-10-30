@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -6,7 +7,6 @@ import { MoreHorizontal, PlusCircle } from "lucide-react"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { doc, setDoc, deleteDoc, collection } from "firebase/firestore"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -25,7 +25,6 @@ import { Input } from "../ui/input"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { useData } from "../data-provider"
-import { useFirebase } from "@/firebase"
 
 interface ClassFacultyMappingTableProps {
 }
@@ -123,30 +122,20 @@ const MappingForm = ({ mapping, onSave, onCancel }: { mapping?: ClassFacultyMapp
 
 
 const ActionsCell = ({ mapping }: { mapping: ClassFacultyMapping; }) => {
-    const { firestore } = useFirebase();
+    const { updateMapping, deleteMapping } = useData();
     const [isEditing, setIsEditing] = React.useState(false);
     const { toast } = useToast();
 
-    const handleEditSave = async (data: Omit<ClassFacultyMapping, 'id'>) => {
-        try {
-            await setDoc(doc(firestore, 'classFacultyMapping', mapping.id), data, { merge: true });
-            toast({ title: "Mapping Updated" });
-            setIsEditing(false);
-        } catch(error) {
-            console.error("Error updating mapping:", error);
-            toast({ variant: 'destructive', title: "Update failed" });
-        }
+    const handleEditSave = (data: Omit<ClassFacultyMapping, 'id'>) => {
+        updateMapping(mapping.id, data);
+        toast({ title: "Mapping Updated" });
+        setIsEditing(false);
     };
     
-    const handleDelete = async () => {
+    const handleDelete = () => {
         if(confirm(`Are you sure you want to delete this mapping?`)) {
-            try {
-                await deleteDoc(doc(firestore, 'classFacultyMapping', mapping.id));
-                toast({ title: "Mapping Deleted" });
-            } catch (error) {
-                console.error("Error deleting mapping:", error);
-                toast({ variant: 'destructive', title: "Delete failed" });
-            }
+            deleteMapping(mapping.id);
+            toast({ title: "Mapping Deleted" });
         }
     };
   
@@ -203,23 +192,16 @@ const getColumns = (allFaculty: Faculty[]): ColumnDef<ClassFacultyMapping>[] => 
 ]
 
 export function ClassFacultyMappingTable({}: ClassFacultyMappingTableProps) {
-    const { mappings, faculty } = useData();
+    const { mappings, faculty, addMapping } = useData();
     const [isAdding, setIsAdding] = React.useState<boolean>(false);
     const { toast } = useToast();
-    const { firestore } = useFirebase();
     
     const columns = React.useMemo(() => getColumns(faculty), [faculty]);
 
-    const handleAddSave = async (data: Omit<ClassFacultyMapping, 'id'>) => {
-        const newDocRef = doc(collection(firestore, 'classFacultyMapping'));
-        try {
-            await setDoc(newDocRef, { ...data, id: newDocRef.id });
-            toast({ title: "Mapping Added", description: `The new mapping has been created.` });
-            setIsAdding(false);
-        } catch(error) {
-             console.error("Error adding mapping:", error);
-            toast({ variant: 'destructive', title: "Add failed" });
-        }
+    const handleAddSave = (data: Omit<ClassFacultyMapping, 'id'>) => {
+        addMapping(data);
+        toast({ title: "Mapping Added", description: `The new mapping has been created.` });
+        setIsAdding(false);
     };
 
   return (
@@ -256,3 +238,5 @@ export function ClassFacultyMappingTable({}: ClassFacultyMappingTableProps) {
     </Card>
   )
 }
+
+    

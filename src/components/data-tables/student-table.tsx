@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -6,8 +7,6 @@ import { MoreHorizontal, PlusCircle } from "lucide-react"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { doc, setDoc, deleteDoc } from "firebase/firestore"
-import { createUserWithEmailAndPassword } from "firebase/auth"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -25,7 +24,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "../ui/input"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
 import { useData } from "../data-provider"
-import { useFirebase } from "@/firebase"
 
 interface StudentTableProps {
 }
@@ -39,7 +37,7 @@ const studentSchema = z.object({
 });
 
 
-const StudentForm = ({ student, onSave, onCancel }: { student?: Student; onSave: (data: Omit<Student, 'id'>, id?: string) => void; onCancel: () => void; }) => {
+const StudentForm = ({ student, onSave, onCancel }: { student?: Student; onSave: (data: Omit<Student, 'id'>) => void; onCancel: () => void; }) => {
     const { students } = useData();
     const existingRegNumbers = React.useMemo(() => new Set(students.map(s => s.register_number)), [students]);
 
@@ -58,7 +56,7 @@ const StudentForm = ({ student, onSave, onCancel }: { student?: Student; onSave:
 
     const onSubmit = (values: z.infer<typeof formSchema>) => {
         const { id, ...data } = values;
-        onSave(data, student?.id);
+        onSave(data);
     };
 
     return (
@@ -127,44 +125,24 @@ const StudentForm = ({ student, onSave, onCancel }: { student?: Student; onSave:
 
 
 const ActionsCell = ({ student }: { student: Student; }) => {
-    const { firestore } = useFirebase();
+    const { updateStudent, deleteStudent, updateStudentPassword } = useData();
     const [isEditing, setIsEditing] = React.useState(false);
     const { toast } = useToast();
 
-    const handleEditSave = async (data: Omit<Student, 'id' | 'password'> & { password?: string }, id?: string) => {
-        if (!id) return;
-        try {
-            const docRef = doc(firestore, 'students', id);
-            const updateData: Partial<Student> = { ...data };
-            delete updateData.password;
-            
-            await setDoc(docRef, updateData, { merge: true });
-            
-            // Note: In a real app, you would have a cloud function to update the auth password.
-            // This is a simplified example.
-            if (data.password) {
-                 toast({ title: "Student Updated", description: "Password cannot be changed from here. Please advise user to change it themselves." });
-            } else {
-                 toast({ title: "Student Updated", description: `${data.name} has been updated.` });
-            }
-
-            setIsEditing(false);
-        } catch (error) {
-            console.error("Error updating student:", error);
-            toast({ variant: 'destructive', title: "Update failed" });
+    const handleEditSave = (data: Omit<Student, 'id'>) => {
+        const { password, ...updateData } = data;
+        updateStudent(student.id, updateData);
+        if(password) {
+            updateStudentPassword(student.id, password);
         }
+        toast({ title: "Student Updated", description: `${data.name} has been updated.` });
+        setIsEditing(false);
     };
     
-    const handleDelete = async () => {
+    const handleDelete = () => {
         if (confirm(`Are you sure you want to delete ${student.name}? This will also delete their feedback.`)) {
-             try {
-                await deleteDoc(doc(firestore, 'students', student.id));
-                // Note: Need cloud function to delete user from Auth and their feedback
-                toast({ title: "Student Deleted", description: `${student.name} has been removed.` });
-            } catch (error) {
-                console.error("Error deleting student:", error);
-                toast({ variant: 'destructive', title: "Delete failed" });
-            }
+            deleteStudent(student.id);
+            toast({ title: "Student Deleted", description: `${student.name} has been removed.` });
         }
     };
   
@@ -217,38 +195,17 @@ const getColumns = (): ColumnDef<Student>[] => [
 ]
 
 export function StudentTable({}: StudentTableProps) {
-    const { students } = useData();
+    const { students, addStudent } = useData();
     const [isAdding, setIsAdding] = React.useState(false);
     const { toast } = useToast();
-    const { firestore, auth } = useFirebase();
     
     const columns = React.useMemo(() => getColumns(), []);
 
-    const handleAddSave = async (data: Omit<Student, 'id'>) => {
-        try {
-            const email = `${data.register_number}@feedloop-student.com`;
-            const userCredential = await createUserWithEmailAndPassword(auth, email, data.password);
-            const uid = userCredential.user.uid;
-
-            const studentData = {
-                id: uid,
-                register_number: data.register_number,
-                name: data.name,
-                class_name: data.class_name,
-            };
-
-            await setDoc(doc(firestore, "students", uid), studentData);
-
-            toast({ title: "Student Added", description: `${data.name} has been added.` });
-            setIsAdding(false);
-        } catch (error: any) {
-            console.error("Error adding student:", error);
-            if (error.code === 'auth/email-already-in-use') {
-                 toast({ variant: 'destructive', title: "Add failed", description: "A student with this register number already exists in the authentication system." });
-            } else {
-                toast({ variant: 'destructive', title: "Add failed" });
-            }
-        }
+    const handleAddSave = (data: Omit<Student, 'id'>) => {
+        const { password, ...studentData } = data;
+        addStudent(studentData, password!);
+        toast({ title: "Student Added", description: `${data.name} has been added.` });
+        setIsAdding(false);
     };
 
   return (
@@ -284,3 +241,5 @@ export function StudentTable({}: StudentTableProps) {
     </Card>
   )
 }
+
+    

@@ -1,16 +1,20 @@
 
+// This file contains all the data types for the application.
+
 export interface Student {
-  id: string; // Corresponds to Firebase Auth UID
+  id: string;
   register_number: string;
   name: string;
   class_name: string;
+  password?: string; // Optional because we don't always want to expose it
 }
 
 export interface Faculty {
-  id: string; // Corresponds to Firebase Auth UID
+  id: string;
   faculty_id: string;
   name:string;
   department: string;
+  password?: string; // Optional
 }
 
 export interface Question {
@@ -42,3 +46,5 @@ export interface Feedback {
   semester: string;
   submitted_at: Date;
 }
+
+    

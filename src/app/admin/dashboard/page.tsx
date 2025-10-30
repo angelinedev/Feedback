@@ -4,7 +4,7 @@
 import { useState, useMemo } from 'react';
 import { useData } from "@/components/data-provider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/componentsui/select";
 import { Separator } from "@/components/ui/separator";
 
 import { AvgRatingByDeptChart } from "@/components/charts/avg-rating-by-dept";
@@ -296,3 +296,5 @@ export default function AdminDashboard() {
     </>
   )
 }
+
+    

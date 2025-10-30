@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -6,8 +7,6 @@ import { MoreHorizontal, PlusCircle } from "lucide-react"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { doc, setDoc, deleteDoc } from "firebase/firestore"
-import { createUserWithEmailAndPassword } from "firebase/auth"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -25,7 +24,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
 import { Input } from "../ui/input"
 import { useData } from "../data-provider"
-import { useFirebase } from "@/firebase"
 
 interface FacultyTableProps {
 }
@@ -38,7 +36,7 @@ const facultySchema = z.object({
     password: z.string().min(6, "Password must be at least 6 characters."),
 });
 
-const FacultyForm = ({ faculty, onSave, onCancel }: { faculty?: Faculty; onSave: (data: Omit<Faculty, 'id'>, id?: string) => void; onCancel: () => void; }) => {
+const FacultyForm = ({ faculty, onSave, onCancel }: { faculty?: Faculty; onSave: (data: Omit<Faculty, 'id'>) => void; onCancel: () => void; }) => {
     const { faculty: allFaculty } = useData();
     const existingFacultyIds = React.useMemo(() => new Set(allFaculty.map(f => f.faculty_id)), [allFaculty]);
 
@@ -57,7 +55,7 @@ const FacultyForm = ({ faculty, onSave, onCancel }: { faculty?: Faculty; onSave:
 
     const onSubmit = (values: z.infer<typeof formSchema>) => {
         const { id, ...data } = values;
-        onSave(data, faculty?.id);
+        onSave(data);
     };
 
     return (
@@ -125,40 +123,24 @@ const FacultyForm = ({ faculty, onSave, onCancel }: { faculty?: Faculty; onSave:
 };
 
 const ActionsCell = ({ faculty }: { faculty: Faculty; }) => {
-    const { firestore } = useFirebase();
+    const { updateFaculty, deleteFaculty, updateFacultyPassword } = useData();
     const [isEditing, setIsEditing] = React.useState(false);
     const { toast } = useToast();
     
-    const handleEditSave = async (data: Omit<Faculty, 'id' | 'password'> & { password?: string }, id?: string) => {
-        if (!id) return;
-        try {
-            const docRef = doc(firestore, 'faculty', id);
-            const updateData: Partial<Faculty> = { ...data };
-            delete updateData.password;
-            await setDoc(docRef, updateData, { merge: true });
-            
-             if (data.password) {
-                 toast({ title: "Faculty Updated", description: "Password cannot be changed from here. Please advise user to change it themselves." });
-            } else {
-                 toast({ title: "Faculty Updated", description: `${data.name} has been updated.` });
-            }
-            
-            setIsEditing(false);
-        } catch (error) {
-            console.error("Error updating faculty:", error);
-            toast({ variant: 'destructive', title: "Update failed" });
+    const handleEditSave = (data: Omit<Faculty, 'id'>) => {
+        const { password, ...updateData } = data;
+        updateFaculty(faculty.id, updateData);
+        if(password) {
+            updateFacultyPassword(faculty.id, password);
         }
+        toast({ title: "Faculty Updated", description: `${data.name} has been updated.` });
+        setIsEditing(false);
     };
 
-    const handleDelete = async () => {
+    const handleDelete = () => {
         if(confirm(`Are you sure you want to delete ${faculty.name}?`)) {
-            try {
-                await deleteDoc(doc(firestore, 'faculty', faculty.id));
-                toast({ title: "Faculty Deleted", description: `${faculty.name} has been removed.` });
-            } catch (error) {
-                console.error("Error deleting faculty:", error);
-                toast({ variant: 'destructive', title: "Delete failed" });
-            }
+            deleteFaculty(faculty.id);
+            toast({ title: "Faculty Deleted", description: `${faculty.name} has been removed.` });
         }
     };
   
@@ -211,38 +193,17 @@ const getColumns = (): ColumnDef<Faculty>[] => [
 ];
 
 export function FacultyTable({}: FacultyTableProps) {
-    const { faculty } = useData();
+    const { faculty, addFaculty } = useData();
     const [isAdding, setIsAdding] = React.useState(false);
     const { toast } = useToast();
-    const { firestore, auth } = useFirebase();
     
     const columns = React.useMemo(() => getColumns(), []);
 
-    const handleAddSave = async (data: Omit<Faculty, 'id'>) => {
-        try {
-            const email = `${data.faculty_id}@feedloop-faculty.com`;
-            const userCredential = await createUserWithEmailAndPassword(auth, email, data.password);
-            const uid = userCredential.user.uid;
-
-            const facultyData = {
-                id: uid,
-                faculty_id: data.faculty_id,
-                name: data.name,
-                department: data.department
-            };
-
-            await setDoc(doc(firestore, "faculty", uid), facultyData);
-
-            toast({ title: "Faculty Added", description: `${data.name} has been added.` });
-            setIsAdding(false);
-        } catch (error: any) {
-            console.error("Error adding faculty:", error);
-            if (error.code === 'auth/email-already-in-use') {
-                 toast({ variant: 'destructive', title: "Add failed", description: "A faculty member with this ID already exists in the authentication system." });
-            } else {
-                toast({ variant: 'destructive', title: "Add failed" });
-            }
-        }
+    const handleAddSave = (data: Omit<Faculty, 'id'>) => {
+        const { password, ...facultyData } = data;
+        addFaculty(facultyData, password!);
+        toast({ title: "Faculty Added", description: `${data.name} has been added.` });
+        setIsAdding(false);
     };
 
   return (
@@ -278,3 +239,5 @@ export function FacultyTable({}: FacultyTableProps) {
     </Card>
   )
 }
+
+    
