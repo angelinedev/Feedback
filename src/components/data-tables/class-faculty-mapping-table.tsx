@@ -2,8 +2,7 @@
 
 import * as React from "react"
 import { ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal, PlusCircle, Sparkles, Loader2 } from "lucide-react"
-import { generateClassFacultyMapping } from "@/ai/flows/generate-class-faculty-mapping"
+import { MoreHorizontal, PlusCircle } from "lucide-react"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -20,7 +19,6 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { DataTable } from "./data-table"
 import type { ClassFacultyMapping, Faculty } from "@/lib/types"
-import { Textarea } from "../ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog"
 import { Input } from "../ui/input"
@@ -206,8 +204,6 @@ const getColumns = (allFaculty: Faculty[]): ColumnDef<ClassFacultyMapping>[] => 
 
 export function ClassFacultyMappingTable({}: ClassFacultyMappingTableProps) {
     const { mappings, faculty } = useData();
-    const [prompt, setPrompt] = React.useState<string>("");
-    const [loading, setLoading] = React.useState<boolean>(false);
     const [isAdding, setIsAdding] = React.useState<boolean>(false);
     const { toast } = useToast();
     const { firestore } = useFirebase();
@@ -226,43 +222,6 @@ export function ClassFacultyMappingTable({}: ClassFacultyMappingTableProps) {
         }
     };
 
-    const handleGenerate = async () => {
-        if (!prompt.trim()) {
-            toast({ variant: 'destructive', title: "Prompt is empty", description: "Please enter a prompt to generate mappings." });
-            return;
-        }
-        setLoading(true);
-        try {
-            const output = await generateClassFacultyMapping({ prompt });
-            
-            const existingMappings = new Set(mappings.map(m => `${m.class_name}-${m.faculty_id}-${m.subject}`));
-            let skippedCount = 0;
-            let addedCount = 0;
-
-            const promises = output.mappings.map(async (m) => {
-                const mappingKey = `${m.class_name}-${m.faculty_id}-${m.subject}`;
-                if (existingMappings.has(mappingKey)) {
-                    skippedCount++;
-                    return;
-                }
-                existingMappings.add(mappingKey);
-                const newDocRef = doc(collection(firestore, 'classFacultyMapping'));
-                await setDoc(newDocRef, { ...m, id: newDocRef.id });
-                addedCount++;
-            });
-            
-            await Promise.all(promises);
-
-            toast({ title: "Mappings Generated", description: `${addedCount} new mappings added. ${skippedCount} duplicates skipped.` });
-
-        } catch (error) {
-            console.error("Failed to generate mappings:", error);
-            toast({ variant: 'destructive', title: "Generation Failed", description: "An error occurred while generating mappings." });
-        } finally {
-            setLoading(false);
-        }
-    }
-
   return (
     <Card className="shadow-2xl">
         <CardHeader>
@@ -270,40 +229,21 @@ export function ClassFacultyMappingTable({}: ClassFacultyMappingTableProps) {
             <CardDescription>Assign faculty and subjects to classes.</CardDescription>
         </CardHeader>
         <CardContent>
-            <div className="grid md:grid-cols-2 gap-4 mb-6">
-                <div className="space-y-2">
-                    <h3 className="font-semibold">Generate with AI</h3>
-                    <Textarea 
-                        placeholder="e.g., 'Assign Dr. Reed (101) to CS-A for Data Structures and Prof. Green (102) to CS-A for Algorithms'" 
-                        value={prompt}
-                        onChange={(e) => setPrompt(e.target.value)}
-                        className="min-h-[100px]"
-                    />
-                    <Button onClick={handleGenerate} disabled={loading}>
-                        {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                        Generate Mappings
-                    </Button>
-                </div>
-                <div className="flex items-center justify-center p-4 bg-muted/50 rounded-lg shadow-inner">
-                   <Dialog open={isAdding} onOpenChange={setIsAdding}>
-                        <DialogTrigger asChild>
-                            <div className="text-center">
-                                <h3 className="font-semibold">Manual Entry</h3>
-                                <p className="text-sm text-muted-foreground mb-4">Or, add a single mapping manually.</p>
-                                <Button>
-                                    <PlusCircle className="mr-2 h-4 w-4" /> Add Mapping
-                                </Button>
-                            </div>
-                        </DialogTrigger>
-                        <DialogContent>
-                             <DialogHeader>
-                                <DialogTitle>Add New Mapping</DialogTitle>
-                                <DialogDescription>Create a new class-faculty assignment.</DialogDescription>
-                            </DialogHeader>
-                            <MappingForm onSave={handleAddSave} onCancel={() => setIsAdding(false)}/>
-                        </DialogContent>
-                    </Dialog>
-                </div>
+             <div className="flex justify-end mb-4">
+                 <Dialog open={isAdding} onOpenChange={setIsAdding}>
+                    <DialogTrigger asChild>
+                        <Button>
+                            <PlusCircle className="mr-2 h-4 w-4" /> Add Mapping
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                         <DialogHeader>
+                            <DialogTitle>Add New Mapping</DialogTitle>
+                            <DialogDescription>Create a new class-faculty assignment.</DialogDescription>
+                        </DialogHeader>
+                        <MappingForm onSave={handleAddSave} onCancel={() => setIsAdding(false)}/>
+                    </DialogContent>
+                </Dialog>
             </div>
 
             <DataTable 
