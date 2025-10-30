@@ -1,0 +1,278 @@
+{
+  "entities": {
+    "Student": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Student",
+      "type": "object",
+      "description": "Represents a student record.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the student entity."
+        },
+        "registerNumber": {
+          "type": "string",
+          "description": "The student's registration number (16 digits).",
+          "format": "string",
+          "items": {
+            "type": "string"
+          }
+        },
+        "password": {
+          "type": "string",
+          "description": "The student's password for login. This data model assumes usage of an external authentication system, storage of passwords and credential related data are not recommended."
+        },
+        "className": {
+          "type": "string",
+          "description": "The class name the student belongs to. (Relationship: ClassFacultyMapping 1:N Student)"
+        }
+      },
+      "required": [
+        "id",
+        "registerNumber",
+        "password",
+        "className"
+      ]
+    },
+    "Faculty": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Faculty",
+      "type": "object",
+      "description": "Represents a faculty record.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the faculty entity."
+        },
+        "facultyId": {
+          "type": "string",
+          "description": "The faculty's ID (3-4 digits).",
+          "format": "string",
+          "items": {
+            "type": "string"
+          }
+        },
+        "name": {
+          "type": "string",
+          "description": "Faculty name"
+        },
+        "password": {
+          "type": "string",
+          "description": "The faculty's password for login. This data model assumes usage of an external authentication system, storage of passwords and credential related data are not recommended."
+        }
+      },
+      "required": [
+        "id",
+        "facultyId",
+        "name",
+        "password"
+      ]
+    },
+    "Question": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Question",
+      "type": "object",
+      "description": "Represents a feedback question.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the question entity."
+        },
+        "text": {
+          "type": "string",
+          "description": "The text of the feedback question."
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ]
+    },
+    "ClassFacultyMapping": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ClassFacultyMapping",
+      "type": "object",
+      "description": "Represents the mapping between classes, faculty, and subjects.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the class-faculty mapping entity."
+        },
+        "className": {
+          "type": "string",
+          "description": "The name of the class."
+        },
+        "facultyId": {
+          "type": "string",
+          "description": "Reference to Faculty. (Relationship: Faculty 1:N ClassFacultyMapping)"
+        },
+        "subject": {
+          "type": "string",
+          "description": "The subject being taught."
+        }
+      },
+      "required": [
+        "id",
+        "className",
+        "facultyId",
+        "subject"
+      ]
+    },
+    "Feedback": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Feedback",
+      "type": "object",
+      "description": "Represents a student's feedback for a faculty/subject.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the feedback entity."
+        },
+        "studentId": {
+          "type": "string",
+          "description": "Reference to Student. (Relationship: Student 1:N Feedback)"
+        },
+        "facultyId": {
+          "type": "string",
+          "description": "Reference to Faculty. (Relationship: Faculty 1:N Feedback)"
+        },
+        "classFacultyMappingId": {
+          "type": "string",
+          "description": "Reference to ClassFacultyMapping. (Relationship: ClassFacultyMapping 1:N Feedback)"
+        },
+        "questionId": {
+          "type": "string",
+          "description": "Reference to Question. (Relationship: Question 1:N Feedback)"
+        },
+        "rating": {
+          "type": "number",
+          "description": "The rating given by the student (1-5)."
+        },
+        "comment": {
+          "type": "string",
+          "description": "Optional comment provided by the student."
+        },
+        "isSubmitted": {
+          "type": "boolean",
+          "description": "Indicates whether the feedback form has been submitted."
+        }
+      },
+      "required": [
+        "id",
+        "studentId",
+        "facultyId",
+        "classFacultyMappingId",
+        "questionId",
+        "rating",
+        "isSubmitted"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/students/{studentId}",
+        "definition": {
+          "entityName": "Student",
+          "schema": {
+            "$ref": "#/backend/entities/Student"
+          },
+          "description": "Stores student data. Accessible only by the student themselves or an admin. Uses path-based ownership.",
+          "params": [
+            {
+              "name": "studentId",
+              "description": "The unique identifier for the student."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/faculty/{facultyId}",
+        "definition": {
+          "entityName": "Faculty",
+          "schema": {
+            "$ref": "#/backend/entities/Faculty"
+          },
+          "description": "Stores faculty data. Accessible only by the faculty themselves or an admin. Uses path-based ownership.",
+          "params": [
+            {
+              "name": "facultyId",
+              "description": "The unique identifier for the faculty."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/questions/{questionId}",
+        "definition": {
+          "entityName": "Question",
+          "schema": {
+            "$ref": "#/backend/entities/Question"
+          },
+          "description": "Stores feedback questions. Accessible only by admins.",
+          "params": [
+            {
+              "name": "questionId",
+              "description": "The unique identifier for the feedback question."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/classFacultyMapping/{classFacultyMappingId}",
+        "definition": {
+          "entityName": "ClassFacultyMapping",
+          "schema": {
+            "$ref": "#/backend/entities/ClassFacultyMapping"
+          },
+          "description": "Stores the mapping between classes, faculty, and subjects. Accessible only by admins.",
+          "params": [
+            {
+              "name": "classFacultyMappingId",
+              "description": "The unique identifier for the class-faculty mapping."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/feedback/{feedbackId}",
+        "definition": {
+          "entityName": "Feedback",
+          "schema": {
+            "$ref": "#/backend/entities/Feedback"
+          },
+          "description": "Stores student feedback. Includes denormalized 'studentId', 'facultyId', and 'classFacultyMappingId' for authorization independence. Students can only create/update feedback associated with their ID, faculty can read/analyze the responses related to their classes, and admins have full access.",
+          "params": [
+            {
+              "name": "feedbackId",
+              "description": "The unique identifier for the feedback entry."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_admin/{userId}",
+        "definition": {
+          "entityName": "roles_admin",
+          "schema": {
+            "$ref": "#/backend/entities/Student"
+          },
+          "description": "Marks a user as an admin.  Existence of document grants admin privileges.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the admin user."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "This Firestore structure is designed to facilitate a secure and scalable feedback system, FeedLoop v2, while adhering to the principles of Authorization Independence, Clarity of Intent, DBAC, and QAPs. The structure segregates data based on access requirements and uses denormalization where necessary to avoid complex security rules that rely on `get()` calls.  \n\nAuthorization Independence is achieved by avoiding hierarchical authorization dependencies. Specifically:\n*   The feedback documents contain both `studentId`, `facultyId`, and `classFacultyMappingId`. This denormalization allows security rules to validate student and faculty access to feedback documents without needing to `get()` parent document data.\n\nThis structure also supports QAPs by ensuring secure `list` operations:\n*   Path-Based Ownership: Student data is stored under `/students/{studentId}` which allows simple rules to ensure only the authenticated student or an admin can access their data.\n*   Role-Based Access: Admin users are managed using the `/roles_admin/{uid}` collection. Rules check for the existence of a document at this path to grant admin privileges.\n\nStructural Segregation is used by separating different types of data (students, faculty, questions, mappings, and feedback) into distinct collections. This simplifies security rules because each collection has a clear and consistent access control policy.  The `classFacultyMapping` collection establishes relationships between classes, faculty, and subjects, facilitating dynamic feedback form generation based on a student's class. Finally, access to the faculty reports is limited to the faculty themselves, based on their `facultyId` within the `feedback` documents."
+  }
+}
