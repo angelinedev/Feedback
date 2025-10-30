@@ -156,12 +156,10 @@ export default function AdminDashboard() {
             <AvgRatingByDeptChart />
             </CardContent>
         </Card>
-        
-        <Separator className="my-4" />
 
         {/* Class Drilldown Section */}
         <div>
-            <h2 className="text-xl font-semibold mb-4">Class-Specific View</h2>
+            <h2 className="text-xl font-semibold mt-8 mb-4">Class-Specific View</h2>
             <Card className="shadow-2xl">
                 <CardHeader>
                     <CardTitle>Select a Class</CardTitle>
@@ -218,7 +216,7 @@ export default function AdminDashboard() {
                 )}
             </Card>
         </div>
-
+        
         <Separator className="my-4" />
 
         {/* Faculty Drilldown Section */}
@@ -235,7 +233,7 @@ export default function AdminDashboard() {
                         </SelectTrigger>
                         <SelectContent>
                             {faculty.map(f => (
-                                <SelectItem key={f.id} value={f.faculty_id}>{f.name} ({f.department})</SelectItem>
+                                <SelectItem key={f.faculty_id} value={f.faculty_id}>{f.name} ({f.department})</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
