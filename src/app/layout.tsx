@@ -7,7 +7,7 @@ import { AuthProvider } from '@/components/auth-provider';
 import { DataProvider } from '@/components/data-provider';
 
 export const metadata: Metadata = {
-  title: 'FeedLoop v2',
+  title: 'FEEDBACK - JCE',
   description: 'A comprehensive feedback system for educational institutions.',
 }
 
@@ -34,5 +34,3 @@ export default function RootLayout({
     </html>
   )
 }
-
-    

@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -33,7 +34,7 @@ export default function AdminLayout({
       <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
         <Link href="/admin/dashboard" className="flex items-center gap-2 font-semibold">
           <Logo className="h-6 w-6 text-primary" />
-          <span className="">FeedLoop v2</span>
+          <span className="">FEEDBACK - JCE</span>
         </Link>
       </div>
       <div className="flex-1">
@@ -67,7 +68,7 @@ export default function AdminLayout({
           <nav className="grid gap-6 text-lg font-medium">
             <Link href="/admin/dashboard" className="flex items-center gap-2 text-lg font-semibold">
                 <Logo className="h-6 w-6 text-primary" />
-                <span className="sr-only">FeedLoop v2</span>
+                <span className="sr-only">FEEDBACK - JCE</span>
             </Link>
             {navItems.map((item) => (
                 <Link
