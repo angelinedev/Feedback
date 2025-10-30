@@ -16,6 +16,21 @@ import type { Student, Faculty, ClassFacultyMapping } from "@/lib/types";
 
 type UploadType = 'students' | 'faculty' | 'mappings';
 
+const MOCK_STUDENTS_FROM_FILE: Student[] = [
+    { id: '2403310914821001', register_number: '2403310914821001', name: 'ABHIJEETH KUMAR R', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914822002', register_number: '2403310914822002', name: 'ABINAYA C', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914822003', register_number: '2403310914822003', name: 'ABINAYA R', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821004', register_number: '2403310914821004', name: 'AFSAL AHMED KHAN A', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821005', register_number: '2403310914821005', name: 'AKASH M', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821006', register_number: '2403310914821006', name: 'ANANTHA KRISHNAA M', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821007', register_number: '2403310914821007', name: 'ARISAN A', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914822008', register_number: '2403310914822008', name: 'ARSHIYA THASLIM K', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821009', register_number: '2403310914821009', name: 'BHARATH R', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914821010', register_number: '2403310914821010', name: 'CHANDREAMOULEESWARAN M', password: 'password', class_name: 'AIML-2' },
+    { id: '2403310914822011', register_number: '2403310914822011', name: 'GOPIKA S', password: 'password', class_name: 'AIML-2' },
+    { id: '2402210014832012', register_number: '2402210014832012', name: 'HARINI R', password: 'password', class_name: 'AIML-2' },
+];
+
 export default function DataManagementPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [faculty, setFaculty] = useState<Faculty[]>([]);
@@ -52,9 +67,7 @@ export default function DataManagementPage() {
 
     // Simulate adding data from the uploaded file
     if (type === 'students') {
-      const regNum = `${Date.now()}`.slice(-10);
-      const newStudent: Student = { id: regNum, register_number: regNum, name: 'New Student', class_name: 'CS-B', password: 'password123' };
-      setStudents(prev => [...prev, newStudent]);
+      setStudents(prev => [...prev, ...MOCK_STUDENTS_FROM_FILE]);
     } else if (type === 'faculty') {
       const facId = `${Date.now()}`.slice(-4);
       const newFaculty: Faculty = { id: facId, faculty_id: facId, name: 'New Faculty', department: 'Mechanical', password: 'password123' };
