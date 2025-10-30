@@ -19,12 +19,23 @@ import type { Faculty } from "@/lib/types"
 
 interface FacultyTableProps {
   data: Faculty[];
+  setData: React.Dispatch<React.SetStateAction<Faculty[]>>;
 }
 
-const ActionsCell = ({ faculty }: { faculty: Faculty }) => {
-    // Add logic for Edit/Delete here
-    const handleEdit = () => alert(`Editing ${faculty.name}`);
-    const handleDelete = () => alert(`Deleting ${faculty.name}`);
+const ActionsCell = ({ faculty, setData }: { faculty: Faculty; setData: React.Dispatch<React.SetStateAction<Faculty[]>> }) => {
+    const handleEdit = () => {
+        const newName = prompt("Enter new name:", faculty.name);
+        const newDept = prompt("Enter new department:", faculty.department);
+        if (newName && newDept) {
+            setData(prev => prev.map(f => f.id === faculty.id ? { ...f, name: newName, department: newDept } : f));
+        }
+    };
+    
+    const handleDelete = () => {
+        if(confirm(`Are you sure you want to delete ${faculty.name}?`)) {
+            setData(prev => prev.filter(f => f.id !== faculty.id));
+        }
+    };
   
     return (
       <DropdownMenu>
@@ -43,7 +54,7 @@ const ActionsCell = ({ faculty }: { faculty: Faculty }) => {
     );
 };
 
-const columns: ColumnDef<Faculty>[] = [
+const getColumns = (setData: React.Dispatch<React.SetStateAction<Faculty[]>>): ColumnDef<Faculty>[] => [
   {
     accessorKey: "faculty_id",
     header: "Faculty ID",
@@ -58,13 +69,22 @@ const columns: ColumnDef<Faculty>[] = [
   },
   {
     id: "actions",
-    cell: ({ row }) => <ActionsCell faculty={row.original} />,
+    cell: ({ row }) => <ActionsCell faculty={row.original} setData={setData} />,
   },
-]
+];
 
-export function FacultyTable({ data }: FacultyTableProps) {
+export function FacultyTable({ data, setData }: FacultyTableProps) {
+    const columns = React.useMemo(() => getColumns(setData), [setData]);
+
     const handleAdd = () => {
-        alert("Opening form to add new faculty...")
+        const facultyId = prompt("Enter Faculty ID:");
+        const name = prompt("Enter Name:");
+        const department = prompt("Enter Department:");
+        const password = "password123";
+
+        if(facultyId && name && department) {
+            setData(prev => [...prev, { id: facultyId, faculty_id: facultyId, name, department, password }]);
+        }
     }
 
   return (

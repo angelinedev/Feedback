@@ -1,28 +1,52 @@
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { FeedbackForm } from '@/components/feedback-form';
-import { mockClassFacultyMapping, mockFaculty, mockFeedback, mockQuestions } from '@/lib/mock-data';
-import type { ClassFacultyMapping, Faculty } from '@/lib/types';
+import type { ClassFacultyMapping, Faculty, Student } from '@/lib/types';
 import { CheckCircle, Edit } from 'lucide-react';
+
+// In a real app, this would come from a database
+const MOCK_GLOBAL_FACULTY: Faculty[] = [
+  { id: '101', faculty_id: '101', name: 'Dr. Evelyn Reed', password: 'password123', department: 'Computer Science' },
+  { id: '102', faculty_id: '102', name: 'Prof. Samuel Green', password: 'password123', department: 'Computer Science' },
+  { id: '201', faculty_id: '201', name: 'Dr. Olivia White', password: 'password123', department: 'Electronics' },
+  { id: '202', faculty_id: '202', name: 'Prof. David Black', password: 'password123', department: 'Electronics' },
+];
+
+const MOCK_GLOBAL_MAPPINGS: ClassFacultyMapping[] = [
+    { id: 'map1', class_name: 'CS-A', faculty_id: '101', subject: 'Data Structures' },
+    { id: 'map2', class_name: 'CS-A', faculty_id: '102', subject: 'Algorithms' },
+    { id: 'map3', class_name: 'CS-B', faculty_id: '101', subject: 'Database Management' },
+    { id: 'map4', class_name: 'EC-A', faculty_id: '201', subject: 'Digital Circuits' },
+    { id: 'map5', class_name: 'EC-A', faculty_id: '202', subject: 'Signal Processing' },
+];
+
+const MOCK_GLOBAL_QUESTIONS = [
+  { id: 'q1', text: 'Clarity of explanation', order: 1 },
+  { id: 'q2', text: 'Punctuality and regularity', order: 2 },
+  { id: 'q3', text: 'Subject knowledge', order: 3 },
+  { id: 'q4', text: 'Interaction and engagement with students', order: 4 },
+  { id: 'q5', text: 'Quality of learning materials provided', order: 5 },
+  { id: 'q6', text: 'Fairness in evaluation', order: 6 },
+];
 
 export default function StudentDashboard() {
   const { user } = useAuth();
-  const [submittedFeedback, setSubmittedFeedback] = useState<string[]>(mockFeedback.map(f => `${f.faculty_id}-${f.subject}`));
+  const [submittedFeedback, setSubmittedFeedback] = useState<string[]>([]);
   const [selectedMapping, setSelectedMapping] = useState<(ClassFacultyMapping & { facultyName: string }) | null>(null);
   
-  const student = user?.details as any;
+  const student = user?.details as Student | undefined;
 
   const subjectsForStudent = useMemo(() => {
     if (!student?.class_name) return [];
-    return mockClassFacultyMapping
+    return MOCK_GLOBAL_MAPPINGS
       .filter(mapping => mapping.class_name === student.class_name)
       .map(mapping => {
-        const faculty = mockFaculty.find(f => f.faculty_id === mapping.faculty_id);
+        const faculty = MOCK_GLOBAL_FACULTY.find(f => f.faculty_id === mapping.faculty_id);
         return {
           ...mapping,
           facultyName: faculty?.name || 'Unknown Faculty'
@@ -83,7 +107,7 @@ export default function StudentDashboard() {
                           </SheetDescription>
                         </SheetHeader>
                         <FeedbackForm
-                          questions={mockQuestions}
+                          questions={MOCK_GLOBAL_QUESTIONS}
                           facultyId={selectedMapping.faculty_id}
                           subject={selectedMapping.subject}
                           onSubmit={handleFeedbackSubmit}

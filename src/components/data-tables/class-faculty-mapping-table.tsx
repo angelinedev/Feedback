@@ -16,20 +16,28 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { DataTable } from "./data-table"
-import type { ClassFacultyMapping } from "@/lib/types"
-import { mockFaculty } from "@/lib/mock-data"
+import type { ClassFacultyMapping, Faculty } from "@/lib/types"
 import { Textarea } from "../ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 
 interface ClassFacultyMappingTableProps {
   data: ClassFacultyMapping[];
   setData: React.Dispatch<React.SetStateAction<ClassFacultyMapping[]>>;
+  allFaculty: Faculty[];
 }
 
-const ActionsCell = ({ mapping }: { mapping: ClassFacultyMapping }) => {
-    // Add logic for Edit/Delete here
-    const handleEdit = () => alert(`Editing mapping ${mapping.id}`);
-    const handleDelete = () => alert(`Deleting mapping ${mapping.id}`);
+const ActionsCell = ({ mapping, setData }: { mapping: ClassFacultyMapping; setData: React.Dispatch<React.SetStateAction<ClassFacultyMapping[]>> }) => {
+    const handleEdit = () => {
+        const newSubject = prompt("Enter new subject:", mapping.subject);
+        if (newSubject) {
+            setData(prev => prev.map(m => m.id === mapping.id ? { ...m, subject: newSubject } : m));
+        }
+    };
+    const handleDelete = () => {
+        if(confirm(`Are you sure you want to delete this mapping?`)) {
+            setData(prev => prev.filter(m => m.id !== mapping.id));
+        }
+    };
   
     return (
       <DropdownMenu>
@@ -48,7 +56,7 @@ const ActionsCell = ({ mapping }: { mapping: ClassFacultyMapping }) => {
     );
 };
 
-const columns: ColumnDef<ClassFacultyMapping>[] = [
+const getColumns = (setData: React.Dispatch<React.SetStateAction<ClassFacultyMapping[]>>, allFaculty: Faculty[]): ColumnDef<ClassFacultyMapping>[] => [
   {
     accessorKey: "class_name",
     header: "Class Name",
@@ -57,7 +65,7 @@ const columns: ColumnDef<ClassFacultyMapping>[] = [
     accessorKey: "faculty_id",
     header: "Faculty",
     cell: ({ row }) => {
-        const faculty = mockFaculty.find(f => f.faculty_id === row.original.faculty_id);
+        const faculty = allFaculty.find(f => f.faculty_id === row.original.faculty_id);
         return faculty ? `${faculty.name} (${faculty.faculty_id})` : row.original.faculty_id;
     }
   },
@@ -67,17 +75,23 @@ const columns: ColumnDef<ClassFacultyMapping>[] = [
   },
   {
     id: "actions",
-    cell: ({ row }) => <ActionsCell mapping={row.original} />,
+    cell: ({ row }) => <ActionsCell mapping={row.original} setData={setData} />,
   },
 ]
 
-export function ClassFacultyMappingTable({ data, setData }: ClassFacultyMappingTableProps) {
+export function ClassFacultyMappingTable({ data, setData, allFaculty }: ClassFacultyMappingTableProps) {
     const [prompt, setPrompt] = React.useState<string>("");
     const [loading, setLoading] = React.useState<boolean>(false);
     const { toast } = useToast();
+    const columns = React.useMemo(() => getColumns(setData, allFaculty), [setData, allFaculty]);
 
     const handleAdd = () => {
-        alert("Opening form to add new mapping...")
+        const className = prompt("Enter Class Name:");
+        const facultyId = prompt("Enter Faculty ID:");
+        const subject = prompt("Enter Subject:");
+        if (className && facultyId && subject) {
+            setData(prev => [...prev, { id: `map-${Date.now()}`, class_name: className, faculty_id: facultyId, subject }]);
+        }
     }
 
     const handleGenerate = async () => {

@@ -19,12 +19,23 @@ import type { Student } from "@/lib/types"
 
 interface StudentTableProps {
   data: Student[];
+  setData: React.Dispatch<React.SetStateAction<Student[]>>;
 }
 
-const ActionsCell = ({ student }: { student: Student }) => {
-    // Add logic for Edit/Delete here
-    const handleEdit = () => alert(`Editing ${student.name}`);
-    const handleDelete = () => alert(`Deleting ${student.name}`);
+const ActionsCell = ({ student, setData }: { student: Student; setData: React.Dispatch<React.SetStateAction<Student[]>> }) => {
+    const handleEdit = () => {
+        const newName = prompt("Enter new name:", student.name);
+        const newClass = prompt("Enter new class:", student.class_name);
+        if (newName && newClass) {
+            setData(prev => prev.map(s => s.id === student.id ? { ...s, name: newName, class_name: newClass } : s));
+        }
+    };
+
+    const handleDelete = () => {
+        if (confirm(`Are you sure you want to delete ${student.name}?`)) {
+            setData(prev => prev.filter(s => s.id !== student.id));
+        }
+    };
   
     return (
       <DropdownMenu>
@@ -43,7 +54,7 @@ const ActionsCell = ({ student }: { student: Student }) => {
     );
 };
 
-const columns: ColumnDef<Student>[] = [
+const getColumns = (setData: React.Dispatch<React.SetStateAction<Student[]>>): ColumnDef<Student>[] => [
   {
     accessorKey: "register_number",
     header: "Register Number",
@@ -58,13 +69,22 @@ const columns: ColumnDef<Student>[] = [
   },
   {
     id: "actions",
-    cell: ({ row }) => <ActionsCell student={row.original} />,
+    cell: ({ row }) => <ActionsCell student={row.original} setData={setData} />,
   },
 ]
 
-export function StudentTable({ data }: StudentTableProps) {
+export function StudentTable({ data, setData }: StudentTableProps) {
+    const columns = React.useMemo(() => getColumns(setData), [setData]);
+    
     const handleAdd = () => {
-        alert("Opening form to add new student...")
+        const regNum = prompt("Enter Register Number:");
+        const name = prompt("Enter Name:");
+        const className = prompt("Enter Class Name:");
+        const password = "password123";
+
+        if(regNum && name && className) {
+            setData(prev => [...prev, { id: regNum, register_number: regNum, name, class_name: className, password}]);
+        }
     }
 
   return (

@@ -12,15 +12,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { mockStudents, mockFaculty, mockClassFacultyMapping, mockQuestions } from "@/lib/mock-data";
-import type { Student, Faculty, ClassFacultyMapping, Question } from "@/lib/types";
+import type { Student, Faculty, ClassFacultyMapping } from "@/lib/types";
 
 type UploadType = 'students' | 'faculty' | 'mappings';
 
 export default function DataManagementPage() {
-  const [students, setStudents] = useState<Student[]>(mockStudents);
-  const [faculty, setFaculty] = useState<Faculty[]>(mockFaculty);
-  const [mappings, setMappings] = useState<ClassFacultyMapping[]>(mockClassFacultyMapping);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [faculty, setFaculty] = useState<Faculty[]>([]);
+  const [mappings, setMappings] = useState<ClassFacultyMapping[]>([]);
   
   const [selectedFiles, setSelectedFiles] = useState<Record<UploadType, File | null>>({
     students: null,
@@ -53,13 +52,15 @@ export default function DataManagementPage() {
 
     // Simulate adding data from the uploaded file
     if (type === 'students') {
-      const newStudent: Student = { id: `new-${Date.now()}`, register_number: `${Date.now()}`.slice(-10), name: 'New Student', class_name: 'CS-B', password: 'password123' };
+      const regNum = `${Date.now()}`.slice(-10);
+      const newStudent: Student = { id: regNum, register_number: regNum, name: 'New Student', class_name: 'CS-B', password: 'password123' };
       setStudents(prev => [...prev, newStudent]);
     } else if (type === 'faculty') {
-      const newFaculty: Faculty = { id: `new-${Date.now()}`, faculty_id: `${Date.now()}`.slice(-4), name: 'New Faculty', department: 'Mechanical', password: 'password123' };
+      const facId = `${Date.now()}`.slice(-4);
+      const newFaculty: Faculty = { id: facId, faculty_id: facId, name: 'New Faculty', department: 'Mechanical', password: 'password123' };
       setFaculty(prev => [...prev, newFaculty]);
     } else if (type === 'mappings') {
-      const newMapping: ClassFacultyMapping = { id: `new-${Date.now()}`, class_name: 'CS-B', faculty_id: '102', subject: 'New Subject' };
+      const newMapping: ClassFacultyMapping = { id: `map-${Date.now()}`, class_name: 'CS-B', faculty_id: '102', subject: 'New Subject' };
       setMappings(prev => [...prev, newMapping]);
     }
 
@@ -93,22 +94,22 @@ export default function DataManagementPage() {
         </TabsList>
 
         <TabsContent value="students" className="mt-4">
-          <StudentTable data={students} />
+          <StudentTable data={students} setData={setStudents} />
         </TabsContent>
         <TabsContent value="faculty" className="mt-4">
-          <FacultyTable data={faculty} />
+          <FacultyTable data={faculty} setData={setFaculty} />
         </TabsContent>
         <TabsContent value="questions" className="mt-4">
           <QuestionsTable />
         </TabsContent>
         <TabsContent value="mappings" className="mt-4">
-            <ClassFacultyMappingTable data={mappings} setData={setMappings} />
+            <ClassFacultyMappingTable data={mappings} setData={setMappings} allFaculty={faculty} />
         </TabsContent>
         <TabsContent value="bulk-upload" className="mt-4">
             <Card className="shadow-2xl">
                 <CardHeader>
                     <CardTitle>Bulk Data Upload</CardTitle>
-                    <CardDescription>Upload CSV or Excel files to add multiple records at once. Please ensure the file headers match the specified format.</CardDescription>
+                    <CardDescription>Upload CSV or Excel files to add multiple records at once. This is a simulation and will add sample data.</CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-8 md:grid-cols-3">
                     <div className="p-6 bg-muted/50 rounded-lg shadow-inner flex flex-col">

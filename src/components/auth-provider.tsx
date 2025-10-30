@@ -3,7 +3,23 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import type { Student, Faculty } from '@/lib/types';
-import { mockFaculty, mockStudents } from '@/lib/mock-data';
+
+// NOTE: In a real app, you would fetch this data from your backend.
+// We are leaving the mock data here for login purposes, but the tables will be empty.
+const mockStudents: Student[] = [
+  { id: '1', register_number: '1111222233334441', name: 'Alice Johnson', password: 'password123', class_name: 'CS-A' },
+  { id: '2', register_number: '1111222233334442', name: 'Bob Williams', password: 'password123', class_name: 'CS-A' },
+  { id: '3', register_number: '1111222233334443', name: 'Charlie Brown', password: 'password123', class_name: 'CS-B' },
+  { id: '4', register_number: '1111222233334444', name: 'Diana Miller', password: 'password123', class_name: 'EC-A' },
+  { id: '5', register_number: '1111222233334445', name: 'Ethan Davis', password: 'password123', class_name: 'EC-A' },
+];
+const mockFaculty: Faculty[] = [
+  { id: '101', faculty_id: '101', name: 'Dr. Evelyn Reed', password: 'password123', department: 'Computer Science' },
+  { id: '102', faculty_id: '102', name: 'Prof. Samuel Green', password: 'password123', department: 'Computer Science' },
+  { id: '201', faculty_id: '201', name: 'Dr. Olivia White', password: 'password123', department: 'Electronics' },
+  { id: '202', faculty_id: '202', name: 'Prof. David Black', password: 'password123', department: 'Electronics' },
+];
+
 
 export type UserRole = 'admin' | 'student' | 'faculty';
 
