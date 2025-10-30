@@ -23,10 +23,9 @@ import { useToast } from "@/hooks/use-toast"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
 import { Input } from "../ui/input"
+import { useData } from "../data-provider"
 
 interface FacultyTableProps {
-  data: Faculty[];
-  setData: React.Dispatch<React.SetStateAction<Faculty[]>>;
 }
 
 const facultySchema = z.object({
@@ -34,9 +33,13 @@ const facultySchema = z.object({
     faculty_id: z.string().min(3, "ID must be at least 3 digits").max(4, "ID must be at most 4 digits"),
     name: z.string().min(1, "Name is required."),
     department: z.string().min(1, "Department is required."),
+    password: z.string().optional(),
 });
 
-const FacultyForm = ({ faculty, onSave, onCancel, existingFacultyIds }: { faculty?: Faculty; onSave: (data: Faculty) => void; onCancel: () => void; existingFacultyIds: Set<string> }) => {
+const FacultyForm = ({ faculty, onSave, onCancel }: { faculty?: Faculty; onSave: (data: Faculty) => void; onCancel: () => void; }) => {
+    const { faculty: allFaculty } = useData();
+    const existingFacultyIds = React.useMemo(() => new Set(allFaculty.map(f => f.faculty_id)), [allFaculty]);
+
     const formSchema = facultySchema.extend({
         faculty_id: z.string().min(3, "ID must be at least 3 digits").max(4, "ID must be at most 4 digits").refine(val => {
             if (faculty?.faculty_id === val) return true;
@@ -104,17 +107,18 @@ const FacultyForm = ({ faculty, onSave, onCancel, existingFacultyIds }: { facult
     );
 };
 
-const ActionsCell = ({ faculty, setData, existingFacultyIds }: { faculty: Faculty; setData: React.Dispatch<React.SetStateAction<Faculty[]>>; existingFacultyIds: Set<string> }) => {
+const ActionsCell = ({ faculty }: { faculty: Faculty; }) => {
+    const { setFaculty } = useData();
     const [isEditing, setIsEditing] = React.useState(false);
     
     const handleEditSave = (updatedFaculty: Faculty) => {
-        setData(prev => prev.map(f => f.id === updatedFaculty.id ? updatedFaculty : f));
+        setFaculty(prev => prev.map(f => f.id === updatedFaculty.id ? updatedFaculty : f));
         setIsEditing(false);
     };
 
     const handleDelete = () => {
         if(confirm(`Are you sure you want to delete ${faculty.name}?`)) {
-            setData(prev => prev.filter(f => f.id !== faculty.id));
+            setFaculty(prev => prev.filter(f => f.id !== faculty.id));
         }
     };
   
@@ -140,14 +144,14 @@ const ActionsCell = ({ faculty, setData, existingFacultyIds }: { faculty: Facult
                     <DialogTitle>Edit Faculty</DialogTitle>
                     <DialogDescription>Update the details for this faculty member.</DialogDescription>
                 </DialogHeader>
-                <FacultyForm faculty={faculty} onSave={handleEditSave} onCancel={() => setIsEditing(false)} existingFacultyIds={existingFacultyIds} />
+                <FacultyForm faculty={faculty} onSave={handleEditSave} onCancel={() => setIsEditing(false)} />
             </DialogContent>
         </Dialog>
      </>
     );
 };
 
-const getColumns = (setData: React.Dispatch<React.SetStateAction<Faculty[]>>, existingFacultyIds: Set<string>): ColumnDef<Faculty>[] => [
+const getColumns = (): ColumnDef<Faculty>[] => [
   {
     accessorKey: "faculty_id",
     header: "Faculty ID",
@@ -162,19 +166,19 @@ const getColumns = (setData: React.Dispatch<React.SetStateAction<Faculty[]>>, ex
   },
   {
     id: "actions",
-    cell: ({ row }) => <ActionsCell faculty={row.original} setData={setData} existingFacultyIds={existingFacultyIds} />,
+    cell: ({ row }) => <ActionsCell faculty={row.original} />,
   },
 ];
 
-export function FacultyTable({ data, setData }: FacultyTableProps) {
+export function FacultyTable({}: FacultyTableProps) {
+    const { faculty, setFaculty } = useData();
     const [isAdding, setIsAdding] = React.useState(false);
     const { toast } = useToast();
     
-    const existingFacultyIds = React.useMemo(() => new Set(data.map(f => f.faculty_id)), [data]);
-    const columns = React.useMemo(() => getColumns(setData, existingFacultyIds), [setData, existingFacultyIds]);
+    const columns = React.useMemo(() => getColumns(), []);
 
     const handleAddSave = (newFaculty: Faculty) => {
-        setData(prev => [...prev, newFaculty]);
+        setFaculty(prev => [...prev, newFaculty]);
         toast({ title: "Faculty Added", description: `${newFaculty.name} has been added.` });
         setIsAdding(false);
     };
@@ -198,13 +202,13 @@ export function FacultyTable({ data, setData }: FacultyTableProps) {
                             <DialogTitle>Add New Faculty</DialogTitle>
                             <DialogDescription>Enter the details for the new faculty member.</DialogDescription>
                         </DialogHeader>
-                        <FacultyForm onSave={handleAddSave} onCancel={() => setIsAdding(false)} existingFacultyIds={existingFacultyIds} />
+                        <FacultyForm onSave={handleAddSave} onCancel={() => setIsAdding(false)} />
                     </DialogContent>
                 </Dialog>
             </div>
             <DataTable 
                 columns={columns} 
-                data={data}
+                data={faculty}
                 filterColumn="name"
                 filterPlaceholder="Filter by name..."
              />

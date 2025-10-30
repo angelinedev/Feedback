@@ -13,13 +13,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { Student, Faculty, ClassFacultyMapping } from "@/lib/types";
+import { useData } from "@/components/data-provider";
 
 type UploadType = 'students' | 'faculty' | 'mappings';
 
 export default function DataManagementPage() {
-  const [students, setStudents] = useState<Student[]>([]);
-  const [faculty, setFaculty] = useState<Faculty[]>([]);
-  const [mappings, setMappings] = useState<ClassFacultyMapping[]>([]);
+    const { students, setStudents, faculty, setFaculty, mappings, setMappings } = useData();
   
   const [pastedData, setPastedData] = useState<Record<UploadType, string>>({
     students: "",
@@ -58,7 +57,7 @@ export default function DataManagementPage() {
             const existingIds = new Set(students.map(s => s.register_number));
             lines.forEach(line => {
                 const [register_number, name, password, class_name] = line.split(',');
-                if (register_number && !existingIds.has(register_number)) {
+                if (register_number && name && password && class_name && !existingIds.has(register_number)) {
                     newStudents.push({ id: register_number, register_number, name, password, class_name });
                     existingIds.add(register_number);
                 } else {
@@ -72,7 +71,7 @@ export default function DataManagementPage() {
             const existingIds = new Set(faculty.map(f => f.faculty_id));
             lines.forEach(line => {
                 const [faculty_id, name, password, department] = line.split(',');
-                if (faculty_id && !existingIds.has(faculty_id)) {
+                if (faculty_id && name && password && department && !existingIds.has(faculty_id)) {
                     newFaculty.push({ id: faculty_id, faculty_id, name, password, department });
                     existingIds.add(faculty_id);
                 } else {
@@ -132,16 +131,16 @@ export default function DataManagementPage() {
         </TabsList>
 
         <TabsContent value="students" className="mt-4">
-          <StudentTable data={students} setData={setStudents} />
+          <StudentTable />
         </TabsContent>
         <TabsContent value="faculty" className="mt-4">
-          <FacultyTable data={faculty} setData={setFaculty} />
+          <FacultyTable />
         </TabsContent>
         <TabsContent value="questions" className="mt-4">
           <QuestionsTable />
         </TabsContent>
         <TabsContent value="mappings" className="mt-4">
-            <ClassFacultyMappingTable data={mappings} setData={setMappings} allFaculty={faculty} />
+            <ClassFacultyMappingTable />
         </TabsContent>
         <TabsContent value="bulk-upload" className="mt-4">
             <Card className="shadow-2xl">

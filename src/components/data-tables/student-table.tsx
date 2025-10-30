@@ -23,10 +23,9 @@ import { useToast } from "@/hooks/use-toast"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog"
 import { Input } from "../ui/input"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
+import { useData } from "../data-provider"
 
 interface StudentTableProps {
-  data: Student[];
-  setData: React.Dispatch<React.SetStateAction<Student[]>>;
 }
 
 const studentSchema = z.object({
@@ -34,10 +33,14 @@ const studentSchema = z.object({
     register_number: z.string().length(16, "Register number must be 16 digits."),
     name: z.string().min(1, "Name is required."),
     class_name: z.string().min(1, "Class name is required."),
+    password: z.string().optional(),
 });
 
 
-const StudentForm = ({ student, onSave, onCancel, existingRegNumbers }: { student?: Student; onSave: (data: Student) => void; onCancel: () => void; existingRegNumbers: Set<string> }) => {
+const StudentForm = ({ student, onSave, onCancel }: { student?: Student; onSave: (data: Student) => void; onCancel: () => void; }) => {
+    const { students } = useData();
+    const existingRegNumbers = React.useMemo(() => new Set(students.map(s => s.register_number)), [students]);
+
     const formSchema = studentSchema.extend({
         register_number: z.string().length(16, "Register number must be 16 digits.").refine(val => {
             if (student?.register_number === val) return true; // allow saving with the same number
@@ -106,17 +109,18 @@ const StudentForm = ({ student, onSave, onCancel, existingRegNumbers }: { studen
 };
 
 
-const ActionsCell = ({ student, setData, existingRegNumbers }: { student: Student; setData: React.Dispatch<React.SetStateAction<Student[]>>; existingRegNumbers: Set<string>; }) => {
+const ActionsCell = ({ student }: { student: Student; }) => {
+    const { setStudents } = useData();
     const [isEditing, setIsEditing] = React.useState(false);
 
     const handleEditSave = (updatedStudent: Student) => {
-        setData(prev => prev.map(s => s.id === updatedStudent.id ? updatedStudent : s));
+        setStudents(prev => prev.map(s => s.id === updatedStudent.id ? updatedStudent : s));
         setIsEditing(false);
     };
     
     const handleDelete = () => {
         if (confirm(`Are you sure you want to delete ${student.name}?`)) {
-            setData(prev => prev.filter(s => s.id !== student.id));
+            setStudents(prev => prev.filter(s => s.id !== student.id));
         }
     };
   
@@ -142,14 +146,14 @@ const ActionsCell = ({ student, setData, existingRegNumbers }: { student: Studen
                     <DialogTitle>Edit Student</DialogTitle>
                     <DialogDescription>Update the details for this student.</DialogDescription>
                 </DialogHeader>
-                <StudentForm student={student} onSave={handleEditSave} onCancel={() => setIsEditing(false)} existingRegNumbers={existingRegNumbers} />
+                <StudentForm student={student} onSave={handleEditSave} onCancel={() => setIsEditing(false)} />
             </DialogContent>
         </Dialog>
         </>
     );
 };
 
-const getColumns = (setData: React.Dispatch<React.SetStateAction<Student[]>>, existingRegNumbers: Set<string>): ColumnDef<Student>[] => [
+const getColumns = (): ColumnDef<Student>[] => [
   {
     accessorKey: "register_number",
     header: "Register Number",
@@ -164,19 +168,19 @@ const getColumns = (setData: React.Dispatch<React.SetStateAction<Student[]>>, ex
   },
   {
     id: "actions",
-    cell: ({ row }) => <ActionsCell student={row.original} setData={setData} existingRegNumbers={existingRegNumbers} />,
+    cell: ({ row }) => <ActionsCell student={row.original} />,
   },
 ]
 
-export function StudentTable({ data, setData }: StudentTableProps) {
+export function StudentTable({}: StudentTableProps) {
+    const { students, setStudents } = useData();
     const [isAdding, setIsAdding] = React.useState(false);
     const { toast } = useToast();
     
-    const existingRegNumbers = React.useMemo(() => new Set(data.map(s => s.register_number)), [data]);
-    const columns = React.useMemo(() => getColumns(setData, existingRegNumbers), [setData, existingRegNumbers]);
+    const columns = React.useMemo(() => getColumns(), []);
 
     const handleAddSave = (newStudent: Student) => {
-        setData(prev => [...prev, newStudent]);
+        setStudents(prev => [...prev, newStudent]);
         toast({ title: "Student Added", description: `${newStudent.name} has been added.` });
         setIsAdding(false);
     };
@@ -200,13 +204,13 @@ export function StudentTable({ data, setData }: StudentTableProps) {
                             <DialogTitle>Add New Student</DialogTitle>
                             <DialogDescription>Enter the details for the new student.</DialogDescription>
                         </DialogHeader>
-                        <StudentForm onSave={handleAddSave} onCancel={() => setIsAdding(false)} existingRegNumbers={existingRegNumbers} />
+                        <StudentForm onSave={handleAddSave} onCancel={() => setIsAdding(false)} />
                     </DialogContent>
                 </Dialog>
             </div>
             <DataTable 
                 columns={columns} 
-                data={data}
+                data={students}
                 filterColumn="name"
                 filterPlaceholder="Filter by name..."
              />

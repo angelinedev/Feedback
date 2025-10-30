@@ -26,11 +26,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "../ui/input"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
+import { useData } from "../data-provider"
 
 interface ClassFacultyMappingTableProps {
-  data: ClassFacultyMapping[];
-  setData: React.Dispatch<React.SetStateAction<ClassFacultyMapping[]>>;
-  allFaculty: Faculty[];
 }
 
 const mappingSchema = z.object({
@@ -40,7 +38,11 @@ const mappingSchema = z.object({
     subject: z.string().min(1, "Subject is required."),
 });
 
-const MappingForm = ({ mapping, onSave, onCancel, existingMappings, allFaculty }: { mapping?: ClassFacultyMapping; onSave: (data: ClassFacultyMapping) => void; onCancel: () => void; existingMappings: Set<string>; allFaculty: Faculty[] }) => {
+const MappingForm = ({ mapping, onSave, onCancel }: { mapping?: ClassFacultyMapping; onSave: (data: ClassFacultyMapping) => void; onCancel: () => void; }) => {
+    const { mappings, faculty } = useData();
+
+    const existingMappings = React.useMemo(() => new Set(mappings.map(m => `${m.class_name}-${m.faculty_id}-${m.subject}`)), [mappings]);
+    
     const formSchema = mappingSchema.refine(data => {
         const mappingKey = `${data.class_name}-${data.faculty_id}-${data.subject}`;
         if (mapping?.id && `${mapping.class_name}-${mapping.faculty_id}-${mapping.subject}` === mappingKey) return true;
@@ -88,7 +90,7 @@ const MappingForm = ({ mapping, onSave, onCancel, existingMappings, allFaculty }
                             </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                            {allFaculty.map(f => (
+                            {faculty.map(f => (
                                 <SelectItem key={f.id} value={f.faculty_id}>{f.name} ({f.faculty_id})</SelectItem>
                             ))}
                             </SelectContent>
@@ -120,17 +122,18 @@ const MappingForm = ({ mapping, onSave, onCancel, existingMappings, allFaculty }
 };
 
 
-const ActionsCell = ({ mapping, setData, allFaculty, existingMappings }: { mapping: ClassFacultyMapping; setData: React.Dispatch<React.SetStateAction<ClassFacultyMapping[]>>; allFaculty: Faculty[]; existingMappings: Set<string> }) => {
+const ActionsCell = ({ mapping }: { mapping: ClassFacultyMapping; }) => {
+    const { setMappings } = useData();
     const [isEditing, setIsEditing] = React.useState(false);
 
     const handleEditSave = (updatedMapping: ClassFacultyMapping) => {
-        setData(prev => prev.map(m => m.id === mapping.id ? updatedMapping : m));
+        setMappings(prev => prev.map(m => m.id === mapping.id ? updatedMapping : m));
         setIsEditing(false);
     };
     
     const handleDelete = () => {
         if(confirm(`Are you sure you want to delete this mapping?`)) {
-            setData(prev => prev.filter(m => m.id !== mapping.id));
+            setMappings(prev => prev.filter(m => m.id !== mapping.id));
         }
     };
   
@@ -156,14 +159,14 @@ const ActionsCell = ({ mapping, setData, allFaculty, existingMappings }: { mappi
                     <DialogTitle>Edit Mapping</DialogTitle>
                     <DialogDescription>Update this class-faculty mapping.</DialogDescription>
                 </DialogHeader>
-                <MappingForm mapping={mapping} onSave={handleEditSave} onCancel={() => setIsEditing(false)} existingMappings={existingMappings} allFaculty={allFaculty} />
+                <MappingForm mapping={mapping} onSave={handleEditSave} onCancel={() => setIsEditing(false)} />
             </DialogContent>
         </Dialog>
      </>
     );
 };
 
-const getColumns = (setData: React.Dispatch<React.SetStateAction<ClassFacultyMapping[]>>, allFaculty: Faculty[], existingMappings: Set<string>): ColumnDef<ClassFacultyMapping>[] => [
+const getColumns = (allFaculty: Faculty[]): ColumnDef<ClassFacultyMapping>[] => [
   {
     accessorKey: "class_name",
     header: "Class Name",
@@ -182,21 +185,21 @@ const getColumns = (setData: React.Dispatch<React.SetStateAction<ClassFacultyMap
   },
   {
     id: "actions",
-    cell: ({ row }) => <ActionsCell mapping={row.original} setData={setData} allFaculty={allFaculty} existingMappings={existingMappings} />,
+    cell: ({ row }) => <ActionsCell mapping={row.original} />,
   },
 ]
 
-export function ClassFacultyMappingTable({ data, setData, allFaculty }: ClassFacultyMappingTableProps) {
+export function ClassFacultyMappingTable({}: ClassFacultyMappingTableProps) {
+    const { mappings, setMappings, faculty } = useData();
     const [prompt, setPrompt] = React.useState<string>("");
     const [loading, setLoading] = React.useState<boolean>(false);
     const [isAdding, setIsAdding] = React.useState<boolean>(false);
     const { toast } = useToast();
     
-    const existingMappings = React.useMemo(() => new Set(data.map(m => `${m.class_name}-${m.faculty_id}-${m.subject}`)), [data]);
-    const columns = React.useMemo(() => getColumns(setData, allFaculty, existingMappings), [setData, allFaculty, existingMappings]);
+    const columns = React.useMemo(() => getColumns(faculty), [faculty]);
 
     const handleAddSave = (newMapping: ClassFacultyMapping) => {
-        setData(prev => [...prev, newMapping]);
+        setMappings(prev => [...prev, newMapping]);
         toast({ title: "Mapping Added", description: `The new mapping has been created.` });
         setIsAdding(false);
     };
@@ -210,7 +213,7 @@ export function ClassFacultyMappingTable({ data, setData, allFaculty }: ClassFac
         try {
             const output = await generateClassFacultyMapping({ prompt });
             
-            const currentMappings = new Set(data.map(m => `${m.class_name}-${m.faculty_id}-${m.subject}`));
+            const currentMappings = new Set(mappings.map(m => `${m.class_name}-${m.faculty_id}-${m.subject}`));
             let skippedCount = 0;
 
             const newMappings = output.mappings.filter(m => {
@@ -223,7 +226,7 @@ export function ClassFacultyMappingTable({ data, setData, allFaculty }: ClassFac
                 return true;
             }).map((m, i) => ({...m, id: `gen-${Date.now()}-${i}`}));
 
-            setData(prev => [...prev, ...newMappings]);
+            setMappings(prev => [...prev, ...newMappings]);
             toast({ title: "Mappings Generated", description: `${newMappings.length} new mappings added. ${skippedCount} duplicates skipped.` });
 
         } catch (error) {
@@ -271,7 +274,7 @@ export function ClassFacultyMappingTable({ data, setData, allFaculty }: ClassFac
                                 <DialogTitle>Add New Mapping</DialogTitle>
                                 <DialogDescription>Create a new class-faculty assignment.</DialogDescription>
                             </DialogHeader>
-                            <MappingForm onSave={handleAddSave} onCancel={() => setIsAdding(false)} existingMappings={existingMappings} allFaculty={allFaculty}/>
+                            <MappingForm onSave={handleAddSave} onCancel={() => setIsAdding(false)}/>
                         </DialogContent>
                     </Dialog>
                 </div>
@@ -279,7 +282,7 @@ export function ClassFacultyMappingTable({ data, setData, allFaculty }: ClassFac
 
             <DataTable 
                 columns={columns} 
-                data={data}
+                data={mappings}
                 filterColumn="class_name"
                 filterPlaceholder="Filter by class name..."
              />

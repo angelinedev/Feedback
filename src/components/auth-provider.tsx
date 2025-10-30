@@ -1,24 +1,9 @@
 "use client";
 
-import React, { createContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, useEffect, ReactNode, useContext } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import type { Student, Faculty } from '@/lib/types';
-
-// NOTE: In a real app, you would fetch this data from your backend.
-// We are leaving the mock data here for login purposes, but the tables will be empty.
-const mockStudents: Student[] = [
-  { id: '1', register_number: '1111222233334441', name: 'Alice Johnson', password: 'password123', class_name: 'CS-A' },
-  { id: '2', register_number: '1111222233334442', name: 'Bob Williams', password: 'password123', class_name: 'CS-A' },
-  { id: '3', register_number: '1111222233334443', name: 'Charlie Brown', password: 'password123', class_name: 'CS-B' },
-  { id: '4', register_number: '1111222233334444', name: 'Diana Miller', password: 'password123', class_name: 'EC-A' },
-  { id: '5', register_number: '1111222233334445', name: 'Ethan Davis', password: 'password123', class_name: 'EC-A' },
-];
-const mockFaculty: Faculty[] = [
-  { id: '101', faculty_id: '101', name: 'Dr. Evelyn Reed', password: 'password123', department: 'Computer Science' },
-  { id: '102', faculty_id: '102', name: 'Prof. Samuel Green', password: 'password123', department: 'Computer Science' },
-  { id: '201', faculty_id: '201', name: 'Dr. Olivia White', password: 'password123', department: 'Electronics' },
-  { id: '202', faculty_id: '202', name: 'Prof. David Black', password: 'password123', department: 'Electronics' },
-];
+import { useData } from './data-provider';
 
 
 export type UserRole = 'admin' | 'student' | 'faculty';
@@ -39,11 +24,12 @@ export interface AuthContextType {
 
 export const AuthContext = createContext<AuthContextType | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+function AuthProviderContent({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
+  const { students, faculty } = useData();
 
   useEffect(() => {
     setLoading(true);
@@ -85,14 +71,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loggedInUser = { id: 'admin', name: 'Admin', role: 'admin', details: adminDetails };
       }
     } else if (role === 'student') {
-      const student = mockStudents.find(s => s.register_number === id && s.password === pass);
+      const student = students.find(s => s.register_number === id && s.password === pass);
       if (student) {
         loggedInUser = { id: student.id, name: student.name, role: 'student', details: student };
       }
     } else if (role === 'faculty') {
-      const faculty = mockFaculty.find(f => f.faculty_id === id && f.password === pass);
-      if (faculty) {
-        loggedInUser = { id: faculty.id, name: faculty.name, role: 'faculty', details: faculty };
+      const facultyMember = faculty.find(f => f.faculty_id === id && f.password === pass);
+      if (facultyMember) {
+        loggedInUser = { id: facultyMember.id, name: facultyMember.name, role: 'faculty', details: facultyMember };
       }
     }
 
@@ -127,4 +113,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
+}
+
+
+import { DataProvider } from './data-provider';
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  return (
+    <DataProvider>
+      <AuthProviderContent>{children}</AuthProviderContent>
+    </DataProvider>
+  )
 }
