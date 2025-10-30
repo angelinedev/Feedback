@@ -33,7 +33,7 @@ const facultySchema = z.object({
     faculty_id: z.string().min(3, "ID must be at least 3 digits").max(4, "ID must be at most 4 digits"),
     name: z.string().min(1, "Name is required."),
     department: z.string().min(1, "Department is required."),
-    password: z.string().optional(),
+    password: z.string().min(1, "Password is required."),
 });
 
 const FacultyForm = ({ faculty, onSave, onCancel }: { faculty?: Faculty; onSave: (data: Faculty) => void; onCancel: () => void; }) => {
@@ -45,15 +45,16 @@ const FacultyForm = ({ faculty, onSave, onCancel }: { faculty?: Faculty; onSave:
             if (faculty?.faculty_id === val) return true;
             return !existingFacultyIds.has(val);
         }, "This Faculty ID already exists."),
+        password: faculty ? z.string().optional() : z.string().min(1, "Password is required"),
     });
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
-        defaultValues: faculty || { faculty_id: "", name: "", department: "" },
+        defaultValues: faculty ? { ...faculty, password: "" } : { faculty_id: "", name: "", department: "", password: "" },
     });
 
     const onSubmit = (values: z.infer<typeof formSchema>) => {
-        onSave({ ...values, id: faculty?.id || values.faculty_id, password: faculty?.password || 'password123' });
+        onSave({ ...values, id: faculty?.id || values.faculty_id, password: values.password || faculty?.password });
     };
 
     return (
@@ -93,6 +94,19 @@ const FacultyForm = ({ faculty, onSave, onCancel }: { faculty?: Faculty; onSave:
                             <FormLabel>Department</FormLabel>
                             <FormControl>
                                 <Input placeholder="e.g., Computer Science" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Password</FormLabel>
+                            <FormControl>
+                                <Input type="password" placeholder={faculty ? "Leave blank to keep current password" : "Set a password"} {...field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -163,6 +177,11 @@ const getColumns = (): ColumnDef<Faculty>[] => [
   {
     accessorKey: "department",
     header: "Department",
+  },
+  {
+    accessorKey: "password",
+    header: "Password",
+    cell: () => <span>••••••••</span>
   },
   {
     id: "actions",

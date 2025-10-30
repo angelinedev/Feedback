@@ -8,14 +8,16 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { FeedbackForm } from '@/components/feedback-form';
 import type { ClassFacultyMapping, Student, Feedback, Rating } from '@/lib/types';
-import { CheckCircle, Edit } from 'lucide-react';
+import { CheckCircle, Edit, KeyRound } from 'lucide-react';
 import { useData } from '@/components/data-provider';
+import { ChangePasswordDialog } from '@/components/change-password-dialog';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
   const { faculty, mappings, questions, feedback, setFeedback } = useData();
   
   const [selectedMapping, setSelectedMapping] = useState<(ClassFacultyMapping & { facultyName: string }) | null>(null);
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   
   const student = user?.details as Student | undefined;
 
@@ -63,9 +65,19 @@ export default function StudentDashboard() {
   
   return (
     <div className="container mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Welcome, {user?.name}</h1>
-        <p className="text-muted-foreground">Here are the feedback forms available for your class: {student?.class_name}</p>
+      <div className="mb-8 flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Welcome, {user?.name}</h1>
+          <p className="text-muted-foreground">Here are the feedback forms available for your class: {student?.class_name}</p>
+        </div>
+        <ChangePasswordDialog 
+          open={isPasswordDialogOpen} 
+          onOpenChange={setIsPasswordDialogOpen}
+        >
+          <Button variant="outline" onClick={() => setIsPasswordDialogOpen(true)}>
+            <KeyRound className="mr-2" /> Change Password
+          </Button>
+        </ChangePasswordDialog>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

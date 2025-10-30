@@ -15,12 +15,16 @@ import { FeedbackCriteriaChart } from '@/components/charts/feedback-criteria-cha
 import { ResponseRateChart } from '@/components/charts/response-rate-chart';
 import type { Faculty } from '@/lib/types';
 import { useData } from '@/components/data-provider';
+import { Button } from '@/components/ui/button';
+import { KeyRound } from 'lucide-react';
+import { ChangePasswordDialog } from '@/components/change-password-dialog';
 
 
 export default function FacultyDashboard() {
   const { user } = useAuth();
   const { students, mappings, feedback } = useData();
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
 
   const faculty = user?.details as Faculty;
 
@@ -61,9 +65,19 @@ export default function FacultyDashboard() {
 
   return (
     <div className="container mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Welcome, {user?.name}</h1>
-        <p className="text-muted-foreground">Select a subject to view the feedback report.</p>
+      <div className="mb-8 flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Welcome, {user?.name}</h1>
+          <p className="text-muted-foreground">Select a subject to view the feedback report.</p>
+        </div>
+        <ChangePasswordDialog 
+          open={isPasswordDialogOpen} 
+          onOpenChange={setIsPasswordDialogOpen}
+        >
+          <Button variant="outline" onClick={() => setIsPasswordDialogOpen(true)}>
+            <KeyRound className="mr-2" /> Change Password
+          </Button>
+        </ChangePasswordDialog>
       </div>
 
       <div className="mb-6 max-w-sm">

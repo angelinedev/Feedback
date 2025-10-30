@@ -33,7 +33,7 @@ const studentSchema = z.object({
     register_number: z.string().length(16, "Register number must be 16 digits."),
     name: z.string().min(1, "Name is required."),
     class_name: z.string().min(1, "Class name is required."),
-    password: z.string().optional(),
+    password: z.string().min(1, "Password is required"),
 });
 
 
@@ -46,15 +46,16 @@ const StudentForm = ({ student, onSave, onCancel }: { student?: Student; onSave:
             if (student?.register_number === val) return true; // allow saving with the same number
             return !existingRegNumbers.has(val);
         }, "This register number already exists."),
+         password: student ? z.string().optional() : z.string().min(1, "Password is required"),
     });
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
-        defaultValues: student || { register_number: "", name: "", class_name: "" },
+        defaultValues: student ? { ...student, password: "" } : { register_number: "", name: "", class_name: "", password: "" },
     });
 
     const onSubmit = (values: z.infer<typeof formSchema>) => {
-        onSave({ ...values, id: student?.id || values.register_number, password: student?.password || 'password123' });
+        onSave({ ...values, id: student?.id || values.register_number, password: values.password || student?.password });
     };
 
     return (
@@ -94,6 +95,19 @@ const StudentForm = ({ student, onSave, onCancel }: { student?: Student; onSave:
                             <FormLabel>Class Name</FormLabel>
                             <FormControl>
                                 <Input placeholder="e.g., CS-A" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Password</FormLabel>
+                            <FormControl>
+                                <Input type="password" placeholder={student ? "Leave blank to keep current password" : "Set a password"} {...field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -165,6 +179,11 @@ const getColumns = (): ColumnDef<Student>[] => [
   {
     accessorKey: "class_name",
     header: "Class",
+  },
+  {
+    accessorKey: "password",
+    header: "Password",
+    cell: () => <span>••••••••</span>
   },
   {
     id: "actions",
