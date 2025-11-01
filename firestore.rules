@@ -1,9 +1,48 @@
 
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
+  
+    // Function to check if a user is signed in
+    function isSignedIn() {
+      return request.auth != null;
+    }
+  
+    // Students: Can only create their own document, can only read/update/delete their own document.
+    match /students/{studentId} {
+      allow read, update, delete: if request.auth.uid == studentId;
+      allow create: if isSignedIn();
+    }
+    
+    // Faculty: Admins can do anything, authenticated users can read.
+    match /faculty/{facultyId} {
+      allow read: if isSignedIn();
+      allow write: if request.auth.token.role == 'admin';
+    }
+    
+    // Questions: Authenticated users can read. Admins can write.
+    match /questions/{questionId} {
+      allow read: if isSignedIn();
+      allow write: if request.auth.token.role == 'admin';
+    }
+    
+    // Mappings: Authenticated users can read. Admins can write.
+    match /classFacultyMapping/{mappingId} {
+       allow read: if isSignedIn();
+       allow write: if request.auth.token.role == 'admin';
+    }
+
+    // Feedback: Students can create feedback for themselves. Authenticated users can read (app logic handles role-based filtering).
+    match /feedback/{feedbackId} {
+      allow create: if isSignedIn() && request.resource.data.student_id == request.auth.uid;
+      allow read: if isSignedIn();
+      // No update/delete for submitted feedback to maintain data integrity
+    }
+
+    // Default deny all other access
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

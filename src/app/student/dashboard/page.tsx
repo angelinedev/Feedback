@@ -30,10 +30,20 @@ export default function StudentDashboard() {
     return query(collection(firestore, 'feedback'), where('student_id', '==', student.id));
   }, [firestore, student?.id]);
 
+  const facultyQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, 'faculty');
+  }, [firestore, user]);
+
+  const questionsQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, 'questions');
+  }, [firestore, user]);
+
   const { data: mappings } = useCollection<ClassFacultyMapping>(mappingsQuery);
   const { data: feedback } = useCollection<Feedback>(feedbackQuery);
-  const { data: faculty } = useCollection<Faculty>(collection(firestore, 'faculty'));
-  const { data: questions } = useCollection<Question>(collection(firestore, 'questions'));
+  const { data: faculty } = useCollection<Faculty>(facultyQuery);
+  const { data: questions } = useCollection<Question>(questionsQuery);
 
   const [selectedMapping, setSelectedMapping] = useState<(ClassFacultyMapping & { facultyName: string }) | null>(null);
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
