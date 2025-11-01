@@ -9,25 +9,25 @@ service cloud.firestore {
     }
 
     match /students/{studentId} {
-      allow read, update, delete: if request.auth.uid == studentId;
-      allow create: if isSignedIn(); // Admin functionality handled by backend logic
-      allow list: if isSignedIn(); // Let admins list, logic in app
+      allow read, update, delete: if request.auth.uid == studentId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow create: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
     match /faculty/{facultyId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn(); // Admin functionality handled by backend logic
-      allow list: if isSignedIn();
+      allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
     match /questions/{questionId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn(); // Admin functionality
+      allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
     match /classFacultyMapping/{mappingId} {
        allow read: if isSignedIn();
-       allow write: if isSignedIn(); // Admin functionality
+       allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     match /feedback/{feedbackId} {
@@ -36,5 +36,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
