@@ -194,10 +194,21 @@ const getColumns = (allFaculty: Faculty[], allMappings: ClassFacultyMapping[]): 
 ]
 
 export function ClassFacultyMappingTable({}: ClassFacultyMappingTableProps) {
-    const { addMapping } = useAuth();
+    const { addMapping, user } = useAuth();
     const { firestore } = useFirebase();
-    const { data: mappings } = useCollection<ClassFacultyMapping>(collection(firestore, 'classFacultyMapping'));
-    const { data: faculty } = useCollection<Faculty>(collection(firestore, 'faculty'));
+
+    const mappingsQuery = React.useMemo(() => {
+        if (!firestore || !user || user.role !== 'admin') return null;
+        return collection(firestore, 'classFacultyMapping');
+    }, [firestore, user]);
+
+    const facultyQuery = React.useMemo(() => {
+        if (!firestore || !user || user.role !== 'admin') return null;
+        return collection(firestore, 'faculty');
+    }, [firestore, user]);
+
+    const { data: mappings } = useCollection<ClassFacultyMapping>(mappingsQuery);
+    const { data: faculty } = useCollection<Faculty>(facultyQuery);
 
     const [isAdding, setIsAdding] = React.useState<boolean>(false);
     const { toast } = useToast();

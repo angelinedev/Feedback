@@ -195,9 +195,15 @@ const getColumns = (allFaculty: Faculty[]): ColumnDef<Faculty>[] => [
 ];
 
 export function FacultyTable({}: FacultyTableProps) {
-    const { addFaculty } = useAuth();
+    const { addFaculty, user } = useAuth();
     const { firestore } = useFirebase();
-    const { data: faculty } = useCollection<Faculty>(collection(firestore, 'faculty'));
+
+    const facultyQuery = React.useMemo(() => {
+        if (!firestore || !user || user.role !== 'admin') return null;
+        return collection(firestore, 'faculty');
+    }, [firestore, user]);
+    
+    const { data: faculty } = useCollection<Faculty>(facultyQuery);
     
     const [isAdding, setIsAdding] = React.useState(false);
     const { toast } = useToast();

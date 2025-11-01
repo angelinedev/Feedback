@@ -15,12 +15,22 @@ import { useFirebase } from '@/firebase/provider';
 import { collection } from 'firebase/firestore';
 
 export function BulkUpload() {
-  const { addBulkStudents, addBulkFaculty, addBulkMappings } = useAuth();
+  const { addBulkStudents, addBulkFaculty, addBulkMappings, user } = useAuth();
   const { toast } = useToast();
   const { firestore } = useFirebase();
 
-  const { data: students } = useCollection<Student>(collection(firestore, 'students'));
-  const { data: faculty } = useCollection<Faculty>(collection(firestore, 'faculty'));
+  const studentsQuery = useMemo(() => {
+    if (!firestore || !user || user.role !== 'admin') return null;
+    return collection(firestore, 'students');
+  }, [firestore, user]);
+
+  const facultyQuery = useMemo(() => {
+    if (!firestore || !user || user.role !== 'admin') return null;
+    return collection(firestore, 'faculty');
+  }, [firestore, user]);
+
+  const { data: students } = useCollection<Student>(studentsQuery);
+  const { data: faculty } = useCollection<Faculty>(facultyQuery);
   
   const [studentCsv, setStudentCsv] = useState('');
   const [facultyCsv, setFacultyCsv] = useState('');

@@ -197,9 +197,15 @@ const getColumns = (allStudents: Student[]): ColumnDef<Student>[] => [
 ]
 
 export function StudentTable({}: StudentTableProps) {
-    const { addStudent } = useAuth();
+    const { addStudent, user } = useAuth();
     const { firestore } = useFirebase();
-    const { data: students } = useCollection<Student>(collection(firestore, 'students'));
+
+    const studentsQuery = React.useMemo(() => {
+        if (!firestore || !user || user.role !== 'admin') return null;
+        return collection(firestore, 'students');
+    }, [firestore, user]);
+
+    const { data: students } = useCollection<Student>(studentsQuery);
 
     const [isAdding, setIsAdding] = React.useState(false);
     const { toast } = useToast();
