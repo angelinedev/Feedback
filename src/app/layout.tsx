@@ -3,7 +3,6 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { cn } from '@/lib/utils'
 import { Toaster } from "@/components/ui/toaster"
-import { AuthProvider } from '@/components/auth-provider';
 import { DataProvider } from '@/components/data-provider';
 import { FirebaseClientProvider } from '@/firebase';
 
@@ -26,11 +25,9 @@ export default function RootLayout({
       </head>
       <body className={cn("font-body antialiased min-h-screen bg-background font-sans")}>
         <FirebaseClientProvider>
-            <DataProvider>
-              <AuthProvider>
-                {children}
-              </AuthProvider>
-            </DataProvider>
+          <DataProvider>
+            {children}
+          </DataProvider>
         </FirebaseClientProvider>
         <Toaster />
       </body>

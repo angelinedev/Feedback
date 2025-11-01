@@ -14,33 +14,24 @@ import { ChangePasswordDialog } from '@/components/change-password-dialog';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
-  const { mappings, questions, addFeedback, feedback } = useData();
-  const [faculty, setFaculty] = useState<Faculty[]>([]); // We'll need to fetch faculty data
+  const { mappings, questions, addFeedback, feedback, faculty } = useData();
   const [selectedMapping, setSelectedMapping] = useState<(ClassFacultyMapping & { facultyName: string }) | null>(null);
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   
   const student = user?.details as Student | undefined;
-  
-  // Since students can't query the entire faculty collection, we need a way to get faculty names.
-  // In a real app, you might have a function to fetch only the necessary faculty details.
-  // For now, we'll extract them from a broader context if available or leave it unknown.
-  // This is a simplification due to security rules.
-  // For this to work, an admin must log in first to populate the faculty data for other users to see.
-  // This is not ideal but works for this specific setup.
-  const { faculty: allFaculty } = useData();
   
   const subjectsForStudent = useMemo(() => {
     if (!student?.class_name) return [];
     return mappings
       .filter(mapping => mapping.class_name === student.class_name)
       .map(mapping => {
-        const facultyMember = allFaculty.find(f => f.faculty_id === mapping.faculty_id);
+        const facultyMember = faculty.find(f => f.faculty_id === mapping.faculty_id);
         return {
           ...mapping,
           facultyName: facultyMember?.name || 'Unknown Faculty'
         };
       });
-  }, [student?.class_name, mappings, allFaculty]);
+  }, [student?.class_name, mappings, faculty]);
 
   const submittedFeedbackKeys = useMemo(() => {
     if (!student) return new Set();

@@ -136,5 +136,3 @@ export function ChangePasswordDialog({ children, open, onOpenChange }: ChangePas
     </Dialog>
   );
 }
-
-    
