@@ -14,67 +14,43 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      // An admin is a user who has a document in the 'admin' collection with their UID.
       return exists(/databases/$(database)/documents/admin/$(request.auth.uid));
     }
     
-    // Check if any admin document exists at all.
     function noAdminsExist() {
       return !exists(/databases/$(database)/documents/admin);
     }
 
-    // Default deny all to ensure explicit permissions are set.
     match /{document=**} {
       allow read, write: if false;
     }
     
-    // The 'users' collection stores a role for each user.
-    // Any signed-in user can read their own role document.
-    // Admins can read or write any user role document.
-    // The very first admin document can be created by anyone (as part of setup).
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow write: if isAdmin();
-      // Allow create if no admins exist (for initial setup) or if the user is an admin.
-      // Also allow creation during the user creation process by checking linked resource data
       allow create: if (noAdminsExist() && request.resource.data.role == 'admin') || isAdmin() || request.auth.uid == userId;
     }
     
-    // The 'admin' collection is the source of truth for admin privileges.
-    // An admin can read any document here.
-    // Critically, allow ANYONE to create an admin document IF AND ONLY IF no admin documents exist yet.
-    // Subsequent admin documents can only be created by other admins.
     match /admin/{adminId} {
       allow read: if isAdmin();
       allow create: if noAdminsExist() || isAdmin() || request.auth.uid == adminId;
       allow write: if isAdmin();
     }
 
-    // STUDENTS collection
     match /students/{studentId} {
-        // Any authenticated user can read their own student record
         allow read: if isOwner(studentId) || isAdmin();
-        // Students can only update their own profile, not delete it
         allow update: if isOwner(studentId);
-        // Admins can write/delete
         allow write: if isAdmin();
-        // Allow creation by admins or during sign-up
         allow create: if isAdmin() || request.auth.uid == studentId;
     }
     
-    // FACULTY collection
     match /faculty/{facultyId} {
-        // Any authenticated user can read faculty list
         allow read: if isSignedIn();
-        // Faculty can only update their own profile
         allow update: if isOwner(facultyId);
-         // Admins can write/delete
         allow write: if isAdmin();
-        // Allow creation by admins or during sign-up
         allow create: if isAdmin() || request.auth.uid == facultyId;
     }
     
-    // MAPPINGS, QUESTIONS can be read by any authenticated user, but only managed by Admins
     match /classFacultyMapping/{mappingId} {
         allow read: if isSignedIn();
         allow write: if isAdmin();
@@ -85,18 +61,12 @@ service cloud.firestore {
         allow write: if isAdmin();
     }
     
-    // FEEDBACK collection
     match /feedback/{feedbackId} {
-        allow read: if isAdmin() || (resource.data.student_id == request.auth.uid);
         allow create: if request.resource.data.student_id == request.auth.uid;
-        // Faculty can read feedback for them, but this requires more complex rules (e.g. collection group query)
-        // For simplicity, we allow admins to read/update/delete. A faculty member cannot see individual feedback docs.
+        allow read: if isAdmin() || request.resource.data.student_id == request.auth.uid || get(/databases/$(database)/documents/faculty/$(request.auth.uid)).data.faculty_id == resource.data.faculty_id;
         allow update, delete: if isAdmin();
-    }
-
-     match /feedback/{feedbackId} {
-        // Allow faculty to see feedback submitted for them
-        allow read: if isSignedIn() && get(/databases/$(database)/documents/faculty/$(request.auth.uid)).data.faculty_id == resource.data.faculty_id;
     }
   }
 }
+
+    

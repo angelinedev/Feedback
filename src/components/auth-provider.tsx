@@ -152,9 +152,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return () => { unsubStudents(); unsubFaculty(); unsubMappings(); unsubFeedbacks(); };
     } else {
       // Common listeners for both student and faculty
-      const unsubStudents = onSnapshot(query(collection(firestore, 'students'), where('__name__', '==', user.id)), (snap) =>
-        setStudents(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Student)))
-      );
       const unsubFaculty = onSnapshot(collection(firestore, 'faculty'), (snap) =>
         setFaculty(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Faculty)))
       );
@@ -163,18 +160,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       
       let unsubFeedbacks: () => void;
+      let unsubStudents: () => void;
       // Fetch only relevant feedback
       if (user.role === 'student') {
-        const q = query(collection(firestore, 'feedback'), where('student_id', '==', user.id));
-        unsubFeedbacks = onSnapshot(q, (snap) =>
+        const qFeedback = query(collection(firestore, 'feedback'), where('student_id', '==', user.id));
+        unsubFeedbacks = onSnapshot(qFeedback, (snap) =>
             setFeedbacks(snap.docs.map((d) => ({ id: d.id, ...d.data(), submitted_at: d.data().submitted_at?.toDate() } as Feedback)))
+        );
+        const qStudents = query(collection(firestore, 'students'), where('__name__', '==', user.id));
+        unsubStudents = onSnapshot(qStudents, (snap) => 
+            setStudents(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Student)))
         );
       } else { // faculty
         unsubFeedbacks = onSnapshot(collection(firestore, 'feedback'), (snap) =>
             setFeedbacks(snap.docs.map((d) => ({ id: d.id, ...d.data(), submitted_at: d.data().submitted_at?.toDate() } as Feedback)))
         );
+         const qFaculty = query(collection(firestore, 'faculty'), where('__name__', '==', user.id));
+        unsubStudents = onSnapshot(qFaculty, (snap) => 
+            setFaculty(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Faculty)))
+        );
       }
-      return () => { unsubStudents(); unsubFaculty(); unsubMappings(); unsubFeedbacks(); };
+      return () => { unsubFaculty(); unsubMappings(); unsubFeedbacks(); unsubStudents(); };
     }
 
 
@@ -447,3 +453,5 @@ export function useAuth() {
   }
   return context;
 }
+
+    
