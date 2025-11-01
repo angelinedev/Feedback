@@ -5,8 +5,7 @@ import React, { createContext, useState, useContext, ReactNode, useMemo } from '
 import type { Student, Faculty, ClassFacultyMapping, Feedback, Question } from '@/lib/types';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useFirestore } from '@/firebase';
-import { collection, doc, addDoc, updateDoc, deleteDoc, writeBatch, where, getDocs, query } from 'firebase/firestore';
-import { useAuth } from '@/hooks/use-auth';
+import { collection, doc, addDoc, updateDoc, deleteDoc, writeBatch, where, getDocs, query, DocumentData } from 'firebase/firestore';
 
 
 interface DataContextType {
@@ -27,31 +26,25 @@ interface DataContextType {
   addMapping: (mapping: Omit<ClassFacultyMapping, 'id'>) => Promise<void>;
   updateMapping: (id: string, data: Partial<Omit<ClassFacultyMapping, 'id'>>) => Promise<void>;
   deleteMapping: (id: string) => Promise<void>;
-  addFeedback: (feedback: Omit<Feedback, 'id'>) => Promise<void>;
+  addFeedback: (feedback: Omit<Feedback, 'id'>, studentId: string) => Promise<void>;
   addBulkStudents: (students: Omit<Student, 'id'>[]) => Promise<void>;
   addBulkFaculty: (faculty: Omit<Faculty, 'id'>[]) => Promise<void>;
   addBulkMappings: (mappings: Omit<ClassFacultyMapping, 'id'>[]) => Promise<void>;
+  loginStudent: (regNo: string, pass: string) => Promise<Student | null>;
+  loginFaculty: (facultyId: string, pass: string) => Promise<Faculty | null>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const firestore = useFirestore();
-  const { user } = useAuth();
 
-  const studentsQuery = useMemo(() => collection(firestore, 'students'), [firestore]);
-  const facultyQuery = useMemo(() => collection(firestore, 'faculty'), [firestore]);
-  const mappingsQuery = useMemo(() => collection(firestore, 'classFacultyMapping'), [firestore]);
-  const questionsQuery = useMemo(() => collection(firestore, 'questions'), [firestore]);
+  const studentsQuery = useMemo(() => firestore ? collection(firestore, 'students') : null, [firestore]);
+  const facultyQuery = useMemo(() => firestore ? collection(firestore, 'faculty') : null, [firestore]);
+  const mappingsQuery = useMemo(() => firestore ? collection(firestore, 'classFacultyMapping') : null, [firestore]);
+  const questionsQuery = useMemo(() => firestore ? collection(firestore, 'questions') : null, [firestore]);
+  const feedbackQuery = useMemo(() => firestore ? collection(firestore, 'feedback') : null, [firestore]);
   
-  const feedbackQuery = useMemo(() => {
-    if (!user) return null;
-    if (user.role === 'student') {
-        return query(collection(firestore, 'feedback'), where('student_id', '==', user.id));
-    }
-    return collection(firestore, 'feedback');
-  }, [firestore, user]);
-
   const { data: students, isLoading: studentsLoading } = useCollection<Student>(studentsQuery);
   const { data: faculty, isLoading: facultyLoading } = useCollection<Faculty>(facultyQuery);
   const { data: mappings, isLoading: mappingsLoading } = useCollection<ClassFacultyMapping>(mappingsQuery);
@@ -60,49 +53,85 @@ export function DataProvider({ children }: { children: ReactNode }) {
   
   const loading = studentsLoading || facultyLoading || mappingsLoading || feedbackLoading || questionsLoading;
 
+  const findUserInFirestore = async (collectionName: string, idField: string, id: string, pass: string) => {
+    if(!firestore) return null;
+    const q = query(collection(firestore, collectionName), where(idField, '==', id));
+    const querySnapshot = await getDocs(q);
+    if (querySnapshot.empty) return null;
+
+    const userDoc = querySnapshot.docs[0];
+    const userData = userDoc.data() as DocumentData;
+
+    if (userData.password === pass) {
+        return { ...userData, id: userDoc.id } as Student | Faculty;
+    }
+    return null;
+  }
+
+  const loginStudent = async (regNo: string, pass: string): Promise<Student | null> => {
+    return findUserInFirestore('students', 'register_number', regNo, pass) as Promise<Student | null>;
+  };
+
+  const loginFaculty = async (facultyId: string, pass: string): Promise<Faculty | null> => {
+    return findUserInFirestore('faculty', 'faculty_id', facultyId, pass) as Promise<Faculty | null>;
+  };
+
+
   const addStudent = async (studentData: Omit<Student, 'id' | 'password'>, password: string) => {
+    if(!firestore) return;
     await addDoc(collection(firestore, 'students'), { ...studentData, password });
   };
   const updateStudent = async (id: string, data: Partial<Omit<Student, 'id'>>) => {
+    if(!firestore) return;
     await updateDoc(doc(firestore, 'students', id), data);
   };
   const deleteStudent = async (id: string) => {
+    if(!firestore) return;
     await deleteDoc(doc(firestore, 'students', id));
   };
   const updateStudentPassword = async (id: string, newPass: string) => {
+    if(!firestore) return;
     await updateDoc(doc(firestore, 'students', id), { password: newPass });
   };
 
   const addFaculty = async (facultyData: Omit<Faculty, 'id' | 'password'>, password: string) => {
+    if(!firestore) return;
     await addDoc(collection(firestore, 'faculty'), { ...facultyData, password });
   };
   const updateFaculty = async (id: string, data: Partial<Omit<Faculty, 'id'>>) => {
+    if(!firestore) return;
     await updateDoc(doc(firestore, 'faculty', id), data);
   };
   const deleteFaculty = async (id: string) => {
+    if(!firestore) return;
     await deleteDoc(doc(firestore, 'faculty', id));
   };
   const updateFacultyPassword = async (id: string, newPass: string) => {
+    if(!firestore) return;
      await updateDoc(doc(firestore, 'faculty', id), { password: newPass });
   };
 
   const addMapping = async (mappingData: Omit<ClassFacultyMapping, 'id'>) => {
+    if(!firestore) return;
     await addDoc(collection(firestore, 'classFacultyMapping'), mappingData);
   };
   const updateMapping = async (id: string, data: Partial<Omit<ClassFacultyMapping, 'id'>>) => {
+    if(!firestore) return;
     await updateDoc(doc(firestore, 'classFacultyMapping', id), data);
   };
   const deleteMapping = async (id: string) => {
+    if(!firestore) return;
     await deleteDoc(doc(firestore, 'classFacultyMapping', id));
   };
 
-  const addFeedback = async (feedbackData: Omit<Feedback, 'id'>) => {
-    if(!user || user.role !== 'student') return;
-    const feedbackRef = doc(collection(firestore, 'students', user.id, 'feedback'));
-    await addDoc(collection(firestore, 'feedback'), { ...feedbackData, student_id: user.id });
+  const addFeedback = async (feedbackData: Omit<Feedback, 'id'>, studentId: string) => {
+    if(!firestore) return;
+    const feedbackRef = collection(firestore, 'students', studentId, 'feedback');
+    await addDoc(feedbackRef, { ...feedbackData, student_id: studentId });
   };
 
-  const addBulk = async <T>(collectionName: string, items: T[]) => {
+  const addBulk = async <T extends object>(collectionName: string, items: T[]) => {
+    if(!firestore) return;
     const batch = writeBatch(firestore);
     const collectionRef = collection(firestore, collectionName);
     items.forEach(item => {
@@ -139,6 +168,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     addBulkStudents,
     addBulkFaculty,
     addBulkMappings,
+    loginStudent,
+    loginFaculty,
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

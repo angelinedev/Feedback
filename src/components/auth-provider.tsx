@@ -1,10 +1,8 @@
 
 "use client";
 
-import React, { createContext, useState, useEffect, ReactNode, useMemo } from 'react';
+import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useFirestore } from '@/firebase';
-import { collection, query, where, getDocs, DocumentData } from 'firebase/firestore';
 import type { Student, Faculty } from '@/lib/types';
 import { useData } from './data-provider';
 
@@ -32,8 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
-  const firestore = useFirestore();
-  const { updateStudentPassword, updateFacultyPassword } = useData();
+  const { loginStudent, loginFaculty, updateStudentPassword, updateFacultyPassword } = useData();
 
   useEffect(() => {
     const storedUser = localStorage.getItem('feedloop-user');
@@ -65,20 +62,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   }, [user, loading, pathname, router]);
 
-  const findUserInFirestore = async (collectionName: string, idField: string, id: string, pass: string) => {
-    const q = query(collection(firestore, collectionName), where(idField, '==', id));
-    const querySnapshot = await getDocs(q);
-    if (querySnapshot.empty) return null;
-
-    const userDoc = querySnapshot.docs[0];
-    const userData = userDoc.data() as DocumentData;
-
-    if (userData.password === pass) {
-        return { ...userData, id: userDoc.id } as Student | Faculty;
-    }
-    return null;
-  }
-
   const login = async (role: UserRole, id: string, pass: string): Promise<boolean> => {
     setLoading(true);
     let foundUser: User | null = null;
@@ -88,12 +71,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         foundUser = { id: 'admin', name: 'Admin', role: 'admin', details: { id: 'admin', name: 'Admin' } };
       }
     } else if (role === 'student') {
-      const student = await findUserInFirestore('students', 'register_number', id, pass) as Student;
+      const student = await loginStudent(id, pass);
       if (student) {
         foundUser = { id: student.id, name: student.name, role: 'student', details: student };
       }
     } else if (role === 'faculty') {
-      const facultyMember = await findUserInFirestore('faculty', 'faculty_id', id, pass) as Faculty;
+      const facultyMember = await loginFaculty(id, pass);
       if (facultyMember) {
         foundUser = { id: facultyMember.id, name: facultyMember.name, role: 'faculty', details: facultyMember };
       }
@@ -121,16 +104,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) throw new Error("Not authenticated.");
 
     let success = false;
+    let details: Student | Faculty;
+
     if(user.role === 'student') {
-        const student = user.details as Student;
-        if(student.password === currentPassword) {
-            await updateStudentPassword(student.id, newPassword);
+        details = user.details as Student;
+        if(details.password === currentPassword) {
+            await updateStudentPassword(details.id, newPassword);
             success = true;
         }
     } else if (user.role === 'faculty') {
-        const facultyMember = user.details as Faculty;
-        if(facultyMember.password === currentPassword) {
-            await updateFacultyPassword(facultyMember.id, newPassword);
+        details = user.details as Faculty;
+        if(details.password === currentPassword) {
+            await updateFacultyPassword(details.id, newPassword);
             success = true;
         }
     } else if (user.role === 'admin') {
@@ -146,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             ...user,
             details: { ...user.details, password: newPassword }
         };
-        setUser(updatedUser);
+        setUser(updatedUser as User);
         localStorage.setItem('feedloop-user', JSON.stringify(updatedUser));
     }
   };

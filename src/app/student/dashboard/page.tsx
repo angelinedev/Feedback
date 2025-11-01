@@ -35,10 +35,9 @@ export default function StudentDashboard() {
 
   const submittedFeedbackKeys = useMemo(() => {
     if (!student) return new Set();
+    const studentFeedback = feedback.filter(f => f.student_id === student.id);
     return new Set(
-      feedback
-        .filter(f => f.student_id === student.id)
-        .map(f => `${f.faculty_id}-${f.subject}`)
+      studentFeedback.map(f => `${f.faculty_id}-${f.subject}`)
     );
   }, [feedback, student]);
 
@@ -55,7 +54,7 @@ export default function StudentDashboard() {
       semester: 'Spring 2024', // This could be dynamic in a real app
       submitted_at: new Date(),
     };
-    addFeedback(newFeedback);
+    addFeedback(newFeedback, student.id);
     setSelectedMapping(null);
   };
   
