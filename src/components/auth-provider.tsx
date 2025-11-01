@@ -44,7 +44,7 @@ export interface User {
   id: string;
   name: string;
   role: UserRole;
-  details: Student | Faculty | { id: string; name: string };
+  details: Student | Faculty | { id: string; name: string; email: string; };
 }
 
 interface AuthContextType {
@@ -150,16 +150,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setFeedbacks(snap.docs.map((d) => ({ id: d.id, ...d.data(), submitted_at: d.data().submitted_at?.toDate() } as Feedback)))
       );
       return () => { unsubStudents(); unsubFaculty(); unsubMappings(); unsubFeedbacks(); };
-    } else if (user.role === 'student' || user.role === 'faculty') {
-       const unsubFaculty = onSnapshot(collection(firestore, 'faculty'), (snap) =>
+    } else {
+      // Common listeners for both student and faculty
+      const unsubFaculty = onSnapshot(collection(firestore, 'faculty'), (snap) =>
         setFaculty(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Faculty)))
       );
       const unsubMappings = onSnapshot(collection(firestore, 'classFacultyMapping'), (snap) =>
         setMappings(snap.docs.map((d) => ({ id: d.id, ...d.data() } as ClassFacultyMapping)))
       );
-      const unsubFeedbacks = onSnapshot(collection(firestore, 'feedback'), (snap) =>
-        setFeedbacks(snap.docs.map((d) => ({ id: d.id, ...d.data(), submitted_at: d.data().submitted_at?.toDate() } as Feedback)))
-      );
+      
+      let unsubFeedbacks: () => void;
+      // Fetch only relevant feedback
+      if (user.role === 'student') {
+        const q = query(collection(firestore, 'feedback'), where('student_id', '==', user.id));
+        unsubFeedbacks = onSnapshot(q, (snap) =>
+            setFeedbacks(snap.docs.map((d) => ({ id: d.id, ...d.data(), submitted_at: d.data().submitted_at?.toDate() } as Feedback)))
+        );
+      } else { // faculty
+        unsubFeedbacks = onSnapshot(collection(firestore, 'feedback'), (snap) =>
+            setFeedbacks(snap.docs.map((d) => ({ id: d.id, ...d.data(), submitted_at: d.data().submitted_at?.toDate() } as Feedback)))
+        );
+      }
       return () => { unsubFaculty(); unsubMappings(); unsubFeedbacks(); };
     }
 
