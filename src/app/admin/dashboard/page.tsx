@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 
 import { AvgRatingByDeptChart } from "@/components/charts/avg-rating-by-dept";
-import { TrendChart } from "@/components/charts/trend-chart";
 import { FeedbackCriteriaChart } from '@/components/charts/feedback-criteria-chart';
 import { ResponseRateChart } from '@/components/charts/response-rate-chart';
 import { ClassFacultyRatingsChart } from '@/components/charts/class-faculty-ratings-chart';
@@ -349,21 +348,7 @@ export default function AdminDashboard() {
             </Card>
         </div>
 
-        <Separator className="my-4" />
-
-        <Card className="shadow-2xl">
-            <CardHeader>
-                <CardTitle>College-wide Rating Trend</CardTitle>
-                <CardDescription>Overall average rating tracked over historical semesters.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <TrendChart />
-            </CardContent>
-        </Card>
-
       </div>
     </>
   )
 }
-
-    
