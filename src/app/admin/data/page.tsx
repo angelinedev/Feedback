@@ -16,28 +16,27 @@ export default function DataManagementPage() {
         <h1 className="text-lg font-semibold md:text-2xl">Data Management</h1>
       </div>
       <Tabs defaultValue="students" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="students"><Users className="mr-2" />Students</TabsTrigger>
           <TabsTrigger value="faculty"><Briefcase className="mr-2" />Faculty</TabsTrigger>
           <TabsTrigger value="questions"><HelpCircle className="mr-2" />Questions</TabsTrigger>
           <TabsTrigger value="mappings"><BrainCircuit className="mr-2" />Mappings</TabsTrigger>
-          <TabsTrigger value="bulk-upload"><Upload className="mr-2" />Bulk Upload</TabsTrigger>
         </TabsList>
 
         <TabsContent value="students" className="mt-4">
+          <BulkUpload type="students" />
           <StudentTable />
         </TabsContent>
         <TabsContent value="faculty" className="mt-4">
+          <BulkUpload type="faculty" />
           <FacultyTable />
         </TabsContent>
         <TabsContent value="questions" className="mt-4">
           <QuestionsTable />
         </TabsContent>
         <TabsContent value="mappings" className="mt-4">
-            <ClassFacultyMappingTable />
-        </TabsContent>
-        <TabsContent value="bulk-upload" className="mt-4">
-            <BulkUpload />
+          <BulkUpload type="mappings" />
+          <ClassFacultyMappingTable />
         </TabsContent>
       </Tabs>
     </>
