@@ -17,6 +17,11 @@ service cloud.firestore {
       // An admin is a user who has a document in the 'admin' collection with their UID.
       return exists(/databases/$(database)/documents/admin/$(request.auth.uid));
     }
+    
+    // Check if any admin document exists at all.
+    function noAdminsExist() {
+      return !exists(/databases/$(database)/documents/admin);
+    }
 
     // Default deny all to ensure explicit permissions are set.
     match /{document=**} {
@@ -26,9 +31,11 @@ service cloud.firestore {
     // The 'users' collection stores a role for each user.
     // Any signed-in user can read their own role document.
     // Admins can read or write any user role document.
+    // The very first admin document can be created by anyone.
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
-      allow write: if isAdmin(); // Only admins can create/update roles
+      allow write: if isAdmin();
+      allow create: if noAdminsExist() || isAdmin();
     }
     
     // The 'admin' collection is the source of truth for admin privileges.
@@ -37,7 +44,7 @@ service cloud.firestore {
     // Subsequent admin documents can only be created by other admins.
     match /admin/{adminId} {
       allow read: if isAdmin();
-      allow create: if !exists(/databases/$(database)/documents/admin/$(request.auth.uid)) || isAdmin();
+      allow create: if noAdminsExist() || isAdmin();
       allow write: if isAdmin();
     }
 
@@ -48,6 +55,8 @@ service cloud.firestore {
         allow update: if isOwner(studentId);
         // Admins can do anything
         allow write: if isAdmin();
+        // Anyone can create a student record initially (will be paired with auth creation)
+        allow create: if true; 
     }
     
     // FACULTY collection
@@ -57,6 +66,8 @@ service cloud.firestore {
         allow update: if isOwner(facultyId);
          // Admins can do anything
         allow write: if isAdmin();
+        // Anyone can create a faculty record initially
+        allow create: if true;
     }
     
     // MAPPINGS, QUESTIONS can be read by any authenticated user, but only managed by Admins

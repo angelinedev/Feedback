@@ -13,7 +13,7 @@ import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFirebase } from "@/firebase/provider";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, writeBatch } from "firebase/firestore";
 
 const setupSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters long."),
@@ -46,13 +46,19 @@ export default function SetupAdminPage() {
 
     try {
       // 1. Create the user in Firebase Auth.
-      // This will fail if the user already exists, which is the desired behavior.
       const userCredential = await createUserWithEmailAndPassword(auth, adminEmail, values.password);
       const uid = userCredential.user.uid;
 
-      // 2. Create the admin document in Firestore to grant the role.
-      const adminRoleRef = doc(firestore, "admin", uid);
-      await setDoc(adminRoleRef, { name: "Admin", id: uid, email: adminEmail });
+      // 2. Create the role and admin documents in Firestore in a batch.
+      const batch = writeBatch(firestore);
+      
+      const adminDocRef = doc(firestore, "admin", uid);
+      batch.set(adminDocRef, { name: "Admin", id: uid, email: adminEmail });
+
+      const userRoleDocRef = doc(firestore, "users", uid);
+      batch.set(userRoleDocRef, { role: 'admin', name: 'Admin' });
+
+      await batch.commit();
       
       toast({
         title: "Admin Account Setup Complete!",
@@ -87,7 +93,7 @@ export default function SetupAdminPage() {
         <CardHeader>
           <CardTitle>Admin Account Setup</CardTitle>
           <CardDescription>
-            Create your master admin account. This is a one-time operation. If the account already exists, this process will fail.
+            Create your master admin account. This is a one-time operation.
           </CardDescription>
         </CardHeader>
         <CardContent>

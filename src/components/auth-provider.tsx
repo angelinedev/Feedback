@@ -163,41 +163,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Simplified and corrected admin check
-        const adminDocRef = doc(firestore, 'admin', firebaseUser.uid);
-        const adminDoc = await getDoc(adminDocRef);
+        const userDocRef = doc(firestore, 'users', firebaseUser.uid);
+        const userDoc = await getDoc(userDocRef);
 
-        if (adminDoc.exists()) {
-            setUser({
-                id: firebaseUser.uid,
-                name: 'Admin',
-                role: 'admin',
-                details: { id: firebaseUser.uid, name: 'Admin' }
-            });
+        if (userDoc.exists()) {
+            const userData = userDoc.data();
+            const role = userData.role as UserRole;
+            let details: any;
+            let name: string = userData.name || "User";
+
+            if (role === 'admin') {
+                details = { id: firebaseUser.uid, name: 'Admin' };
+                name = 'Admin';
+            } else if (role === 'student') {
+                const studentDoc = await getDoc(doc(firestore, 'students', firebaseUser.uid));
+                details = { id: studentDoc.id, ...studentDoc.data() };
+                name = details.name;
+            } else if (role === 'faculty') {
+                const facultyDoc = await getDoc(doc(firestore, 'faculty', firebaseUser.uid));
+                details = { id: facultyDoc.id, ...facultyDoc.data() };
+                name = details.name;
+            }
+            setUser({ id: firebaseUser.uid, name, role, details });
         } else {
-            // Not an admin, check for student or faculty in the 'users' collection
-            const userDocRef = doc(firestore, 'users', firebaseUser.uid);
-            const userDoc = await getDoc(userDocRef);
+            // This case can happen right after user creation and before the Firestore doc is written.
+            // Or if the user doc was deleted.
+            // Check if they are an admin as a fallback.
+            const adminDocRef = doc(firestore, 'admin', firebaseUser.uid);
+            const adminDoc = await getDoc(adminDocRef);
 
-            if (userDoc.exists()) {
-                const userData = userDoc.data();
-                const role = userData.role as UserRole;
-                let details: any;
-                let name: string = userData.name || "User";
-
-                if (role === 'student') {
-                    const studentDoc = await getDoc(doc(firestore, 'students', firebaseUser.uid));
-                    details = { id: studentDoc.id, ...studentDoc.data() };
-                    name = details.name;
-                } else if (role === 'faculty') {
-                    const facultyDoc = await getDoc(doc(firestore, 'faculty', firebaseUser.uid));
-                    details = { id: facultyDoc.id, ...facultyDoc.data() };
-                    name = details.name;
-                }
-                setUser({ id: firebaseUser.uid, name, role, details });
+            if (adminDoc.exists()) {
+                setUser({
+                    id: firebaseUser.uid,
+                    name: 'Admin',
+                    role: 'admin',
+                    details: { id: firebaseUser.uid, name: 'Admin' }
+                });
             } else {
-                // User exists in auth but not in our main user role collections
-                setUser(null);
+                 setUser(null);
             }
         }
       } else {
