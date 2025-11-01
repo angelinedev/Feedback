@@ -1,10 +1,8 @@
 
 "use client";
 
-import { useContext } from "react";
-import { useData } from "@/components/data-provider";
+import { useAuth as useFirebaseAuth } from "@/components/auth-provider";
 
 export const useAuth = () => {
-  // This now uses the single, consolidated provider.
-  return useData();
+  return useFirebaseAuth();
 };

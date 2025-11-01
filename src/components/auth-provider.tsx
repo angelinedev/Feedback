@@ -17,7 +17,7 @@ export interface User {
   details: Student | Faculty | { id: 'admin'; name: 'Admin' };
 }
 
-interface DataContextType {
+interface AuthContextType {
   students: Student[];
   faculty: Faculty[];
   mappings: ClassFacultyMapping[];
@@ -46,9 +46,9 @@ interface DataContextType {
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
-const DataContext = createContext<DataContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function DataProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const firestore = useFirestore();
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -225,18 +225,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
   
   useEffect(() => {
     async function fetchAllFaculty() {
-      if (firestore && user && (user.role === 'student' || user.role === 'faculty')) {
-        const facQuery = collection(firestore, 'faculty');
-        const snapshot = await getDocs(facQuery);
-        const facultyList = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Faculty));
-        setAllFaculty(facultyList);
-      } else if (user?.role === 'admin') {
-        setAllFaculty(facultyData || []);
-      }
+        if (!user || !firestore) return;
+        
+        if (user.role === 'student' || user.role === 'faculty') {
+            const facQuery = collection(firestore, 'faculty');
+            try {
+                const snapshot = await getDocs(facQuery);
+                const facultyList = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Faculty));
+                setAllFaculty(facultyList);
+            } catch(e) {
+                // This might fail if rules don't allow general listing, which is fine for students/faculty.
+                // We'll rely on admin-loaded data if direct fetching fails.
+                console.warn("Could not fetch all faculty directly. This is expected for non-admin users.");
+            }
+        } else if (user.role === 'admin') {
+            setAllFaculty(facultyData || []);
+        }
     }
-    if (user) {
-      fetchAllFaculty();
-    }
+    fetchAllFaculty();
   }, [firestore, user, facultyData]);
   
 
@@ -303,7 +309,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const addBulkMappings = async (mappings: Omit<ClassFacultyMapping, 'id'>[]) => addBulk('classFacultyMapping', mappings);
 
 
-  const value: DataContextType = {
+  const value: AuthContextType = {
     students: studentsData || [],
     faculty: user?.role === 'admin' ? (facultyData || []) : allFaculty,
     mappings: mappingsData || [],
@@ -340,15 +346,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
     );
   }
 
-  return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function useData() {
-  const context = useContext(DataContext);
+export function useAuth() {
+  const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useData must be used within a DataProvider');
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 }
-
-    
