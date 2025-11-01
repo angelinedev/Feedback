@@ -4,7 +4,7 @@ import './globals.css'
 import { cn } from '@/lib/utils'
 import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from '@/components/auth-provider';
-import { FirebaseClientProvider } from '@/firebase';
+import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 export const metadata: Metadata = {
   title: 'FEEDBACK - JCE',
