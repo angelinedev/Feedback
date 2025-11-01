@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Question, Rating } from "@/lib/types";
 import { Loader2 } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/components/auth-provider";
 
 interface FeedbackFormProps {
   facultyId: string;

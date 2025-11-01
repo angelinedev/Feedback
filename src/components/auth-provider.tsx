@@ -26,6 +26,7 @@ import {
   query,
   where,
   deleteDoc,
+  addDoc,
 } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
 import type {
@@ -43,7 +44,7 @@ export interface User {
   id: string;
   name: string;
   role: UserRole;
-  details: Student | Faculty | { id: 'admin'; name: 'Admin' };
+  details: Student | Faculty | { id: string; name: string };
 }
 
 interface AuthContextType {
@@ -128,10 +129,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
     const unsubQuestions = onSnapshot(
       collection(firestore, 'questions'),
-      (snap) =>
-        setQuestions(
-          snap.docs.map((d) => ({ id: d.id, ...d.data() } as Question))
-        )
+      (snap) => {
+        if(snap.empty) {
+          // Seed questions if empty
+          const batch = writeBatch(firestore);
+          mockQuestions.forEach(q => {
+            const qRef = doc(firestore, "questions", q.id);
+            batch.set(qRef, q);
+          });
+          batch.commit();
+        } else {
+           setQuestions(
+            snap.docs.map((d) => ({ id: d.id, ...d.data() } as Question))
+          )
+        }
+      }
     );
 
     return () => {
@@ -151,24 +163,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const userData = userDoc.data();
           const role = userData.role as UserRole;
           let details: any;
+          let name: string = "User";
 
           if (role === 'admin') {
-            details = { id: 'admin', name: 'Admin' };
+            details = { id: firebaseUser.uid, name: 'Admin' };
+            name = "Admin"
           } else if (role === 'student') {
             const studentDoc = await getDoc(
               doc(firestore, 'students', firebaseUser.uid)
             );
             details = { id: studentDoc.id, ...studentDoc.data() };
+             name = details.name;
           } else if (role === 'faculty') {
             const facultyDoc = await getDoc(
               doc(firestore, 'faculty', firebaseUser.uid)
             );
             details = { id: facultyDoc.id, ...facultyDoc.data() };
+            name = details.name;
           }
 
           setUser({
             id: firebaseUser.uid,
-            name: details.name,
+            name: name,
             role,
             details,
           });
@@ -188,12 +204,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (authLoading) return;
 
-    const publicPaths = ['/'];
+    const publicPaths = ['/', '/setup-admin'];
     const pathIsPublic = publicPaths.includes(pathname);
 
     if (!user && !pathIsPublic) {
       router.push('/');
-    } else if (user && pathIsPublic) {
+    } else if (user && (pathIsPublic && pathname !== '/setup-admin')) {
       router.push(`/${user.role}/dashboard`);
     }
   }, [user, authLoading, pathname, router]);
@@ -241,22 +257,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
     const addStudent = async (studentData: Omit<Student, 'id' | 'password'>, password: string) => {
         const email = `${studentData.register_number}@student.jce.com`;
+        // In a real-world scenario, you would use a backend function to create users.
+        // The following is not secure for a production app but is fine for this prototype.
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const uid = userCredential.user.uid;
         
         const batch = writeBatch(firestore);
         batch.set(doc(firestore, "students", uid), { ...studentData, id: uid });
-        batch.set(doc(firestore, "users", uid), { role: "student" });
+        batch.set(doc(firestore, "users", uid), { role: "student", name: studentData.name });
         
         await batch.commit();
     };
 
     const updateStudent = async (id: string, data: Partial<Omit<Student, 'id'>>) => {
         await setDoc(doc(firestore, "students", id), data, { merge: true });
+        if(data.name){
+           await setDoc(doc(firestore, "users", id), { name: data.name }, { merge: true });
+        }
     };
 
     const deleteStudent = async (id: string) => {
-        // This is complex due to auth. For now, we just delete the doc.
+        // This is complex due to auth. For now, we just delete the doc. A backend function is needed for production.
         await deleteDoc(doc(firestore, "students", id));
         await deleteDoc(doc(firestore, "users", id));
     };
@@ -268,13 +289,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         const batch = writeBatch(firestore);
         batch.set(doc(firestore, "faculty", uid), { ...facultyData, id: uid });
-        batch.set(doc(firestore, "users", uid), { role: "faculty" });
+        batch.set(doc(firestore, "users", uid), { role: "faculty", name: facultyData.name });
 
         await batch.commit();
     };
 
     const updateFaculty = async (id: string, data: Partial<Omit<Faculty, 'id'>>) => {
         await setDoc(doc(firestore, "faculty", id), data, { merge: true });
+        if(data.name){
+           await setDoc(doc(firestore, "users", id), { name: data.name }, { merge: true });
+        }
     };
     
     const deleteFaculty = async (id: string) => {
@@ -296,45 +320,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const addFeedback = async (feedbackData: Omit<Feedback, 'id'>) => {
-        const newFeedbackRef = doc(collection(firestore, "feedback"));
-        await setDoc(newFeedbackRef, { ...feedbackData, id: newFeedbackRef.id, submitted_at: new Date() });
+        await addDoc(collection(firestore, "feedback"), { ...feedbackData, submitted_at: new Date() });
     };
 
     const addBulkStudents = async (newStudents: Omit<Student, 'id'>[]) => {
-      const batch = writeBatch(firestore);
+      // This function cannot create auth users from the client-side securely in a batch.
+      // This is a simplified version for the prototype. In production, this MUST be a backend/admin function.
       for(const s of newStudents) {
          if(!s.password) continue;
-         const email = `${s.register_number}@student.jce.com`;
-         // This is not ideal as createUserWithEmailAndPassword cannot be batched
-         // In a real app, this should be a backend function.
-         // For now, we will create users one by one. This will be slow.
          try {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, s.password);
-            const uid = userCredential.user.uid;
-            batch.set(doc(firestore, "students", uid), { ...s, id: uid, password: ''});
-            batch.set(doc(firestore, "users", uid), { role: "student" });
+            await addStudent(s, s.password);
          } catch (e) {
              console.error(`Skipping student ${s.register_number}, likely already exists.`, e)
          }
       }
-      await batch.commit();
     };
   
     const addBulkFaculty = async (newFaculty: Omit<Faculty, 'id'>[]) => {
-      const batch = writeBatch(firestore);
       for(const f of newFaculty) {
         if(!f.password) continue;
-        const email = `${f.faculty_id}@faculty.jce.com`;
         try {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, f.password);
-            const uid = userCredential.user.uid;
-            batch.set(doc(firestore, "faculty", uid), { ...f, id: uid, password: '' });
-            batch.set(doc(firestore, "users", uid), { role: "faculty" });
+           await addFaculty(f, f.password);
         } catch (e) {
              console.error(`Skipping faculty ${f.faculty_id}, likely already exists.`, e)
         }
       }
-      await batch.commit();
     };
 
     const addBulkMappings = async (newMappings: Omit<ClassFacultyMapping, 'id'>[]) => {
@@ -383,10 +393,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function useAuthContext() {
+export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuthContext must be used within an AuthProvider');
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 }

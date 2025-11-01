@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useMemo } from 'react';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/components/auth-provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Faculty } from '@/lib/types';
 import { Button } from '@/components/ui/button';

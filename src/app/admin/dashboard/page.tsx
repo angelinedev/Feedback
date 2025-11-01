@@ -4,7 +4,7 @@
 import { useMemo } from 'react';
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/components/auth-provider';
 import { ResponseRateChart } from '@/components/charts/response-rate-chart';
 import { FeedbackCriteriaChart } from '@/components/charts/feedback-criteria-chart';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
