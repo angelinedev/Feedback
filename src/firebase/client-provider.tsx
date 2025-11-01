@@ -3,19 +3,16 @@
 import React, { useMemo, type ReactNode } from 'react';
 import { FirebaseProvider } from '@/firebase/provider';
 import { initializeFirebase } from '@/firebase';
-import type { FirebaseOptions } from 'firebase/app';
 
 interface FirebaseClientProviderProps {
   children: ReactNode;
-  firebaseConfig: FirebaseOptions;
 }
 
-export function FirebaseClientProvider({ children, firebaseConfig }: FirebaseClientProviderProps) {
+export function FirebaseClientProvider({ children }: FirebaseClientProviderProps) {
   const firebaseServices = useMemo(() => {
-    // Initialize Firebase on the client side, once per component mount,
-    // using the config passed down from the server component layout.
-    return initializeFirebase(firebaseConfig);
-  }, [firebaseConfig]); // Dependency array ensures this only re-runs if config changes.
+    // Initialize Firebase on the client side, once per component mount.
+    return initializeFirebase();
+  }, []); // Empty dependency array ensures this runs only once on mount
 
   return (
     <FirebaseProvider

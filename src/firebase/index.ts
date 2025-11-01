@@ -1,26 +1,35 @@
 'use client';
 
-import { firebaseConfig, isFirebaseConfigValid } from '@/firebase/config';
-import { initializeApp, getApps, getApp, FirebaseApp, FirebaseOptions } from 'firebase/app';
+import { firebaseConfig } from '@/firebase/config';
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore'
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
-export function initializeFirebase(config: FirebaseOptions) {
-  if (getApps().length > 0) {
-    return getSdks(getApp());
+export function initializeFirebase() {
+  if (!getApps().length) {
+    // Important! initializeApp() is called without any arguments because Firebase App Hosting
+    // integrates with the initializeApp() function to provide the environment variables needed to
+    // populate the FirebaseOptions in production. It is critical that we attempt to call initializeApp()
+    // without arguments.
+    let firebaseApp;
+    try {
+      // Attempt to initialize via Firebase App Hosting environment variables
+      firebaseApp = initializeApp();
+    } catch (e) {
+      // Only warn in production because it's normal to use the firebaseConfig to initialize
+      // during development
+      if (process.env.NODE_ENV === "production") {
+        console.warn('Automatic initialization failed. Falling back to firebase config object.', e);
+      }
+      firebaseApp = initializeApp(firebaseConfig);
+    }
+
+    return getSdks(firebaseApp);
   }
 
-  // Throw an error if the config is not valid to prevent Firebase errors.
-  if (!isFirebaseConfigValid(config)) {
-    console.error("Firebase config is not valid. Please check your .env.local file and ensure all NEXT_PUBLIC_FIREBASE_ variables are set.");
-    throw new Error("Firebase configuration is missing or invalid. Please check your environment variables and restart the server.");
-  }
-
-  // Initialize with the config object. This is the most reliable way.
-  const firebaseApp = initializeApp(config);
-
-  return getSdks(firebaseApp);
+  // If already initialized, return the SDKs with the already initialized App
+  return getSdks(getApp());
 }
 
 export function getSdks(firebaseApp: FirebaseApp) {
