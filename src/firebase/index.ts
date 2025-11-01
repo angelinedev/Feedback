@@ -1,10 +1,24 @@
 
 'use client';
 
-import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore'
+
+// This configuration uses environment variables for security and flexibility,
+// especially for production deployments on platforms like Vercel.
+// It's set up to work both in a deployed environment and locally.
+
+// For local development, create a `.env.local` file in the root of your project
+// and copy the values from your Firebase project settings into it.
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+};
+
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export function initializeFirebase() {
@@ -20,13 +34,9 @@ export function initializeFirebase() {
       firebaseConfig.appId;
 
   if (!allConfigAvailable) {
-      if (process.env.NODE_ENV === 'development') {
-          console.error("Firebase config is missing or incomplete. Make sure you have a valid .env file for local development.");
-      } else {
-          console.error("Firebase config is missing or incomplete. Check your hosting provider's environment variables.");
-      }
-      // Return a dummy object to prevent further errors, though Firebase will not work.
-      // A better approach in a real app might be to show an error page.
+      const errorMessage = "Firebase config is missing or incomplete. Ensure you have a .env file with all NEXT_PUBLIC_FIREBASE_ variables set for local development, and that they are set in your hosting provider's environment variables for production.";
+      console.error(errorMessage);
+       // We'll return a dummy object here to prevent crashing, but Firebase will not work.
       return { firebaseApp: null, auth: null, firestore: null };
   }
   
@@ -50,4 +60,3 @@ export * from './non-blocking-updates';
 export * from './non-blocking-login';
 export * from './errors';
 export * from './error-emitter';
-
