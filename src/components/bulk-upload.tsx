@@ -10,27 +10,11 @@ import { Upload, Users, Briefcase, BrainCircuit, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import type { Student, Faculty, ClassFacultyMapping } from '@/lib/types';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { useFirebase } from '@/firebase/provider';
-import { collection } from 'firebase/firestore';
+import { mockStudents, mockFaculty } from '@/lib/mock-data';
 
 export function BulkUpload() {
-  const { addBulkStudents, addBulkFaculty, addBulkMappings, user } = useAuth();
+  const { addBulkStudents, addBulkFaculty, addBulkMappings } = useAuth();
   const { toast } = useToast();
-  const { firestore } = useFirebase();
-
-  const studentsQuery = useMemo(() => {
-    if (!firestore || !user || user.role !== 'admin') return null;
-    return collection(firestore, 'students');
-  }, [firestore, user]);
-
-  const facultyQuery = useMemo(() => {
-    if (!firestore || !user || user.role !== 'admin') return null;
-    return collection(firestore, 'faculty');
-  }, [firestore, user]);
-
-  const { data: students } = useCollection<Student>(studentsQuery);
-  const { data: faculty } = useCollection<Faculty>(facultyQuery);
   
   const [studentCsv, setStudentCsv] = useState('');
   const [facultyCsv, setFacultyCsv] = useState('');
@@ -40,8 +24,8 @@ export function BulkUpload() {
   const [isFacultyLoading, setIsFacultyLoading] = useState(false);
   const [isMappingLoading, setIsMappingLoading] = useState(false);
 
-  const allStudents = useMemo(() => students || [], [students]);
-  const allFaculty = useMemo(() => faculty || [], [faculty]);
+  const allStudents = useMemo(() => mockStudents, []);
+  const allFaculty = useMemo(() => mockFaculty, []);
 
   const processCsv = <T extends Record<string, string>>(
     csvText: string, 

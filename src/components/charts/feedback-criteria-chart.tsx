@@ -9,17 +9,14 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart"
 import { useMemo } from "react";
-import { useCollection } from "@/firebase/firestore/use-collection";
-import { useFirebase } from "@/firebase/provider";
-import { collection } from "firebase/firestore";
+import { mockQuestions } from "@/lib/mock-data";
 
 interface FeedbackCriteriaChartProps {
     feedback: Feedback[];
 }
 
 export function FeedbackCriteriaChart({ feedback }: FeedbackCriteriaChartProps) {
-  const { firestore } = useFirebase();
-  const { data: questions } = useCollection<Question>(collection(firestore, 'questions'));
+  const questions = mockQuestions;
 
   const chartData = useMemo(() => {
     if (!questions || feedback.length === 0) {
@@ -74,5 +71,3 @@ export function FeedbackCriteriaChart({ feedback }: FeedbackCriteriaChartProps) 
     </ChartContainer>
   )
 }
-
-    

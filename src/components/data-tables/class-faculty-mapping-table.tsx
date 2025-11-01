@@ -25,9 +25,7 @@ import { Input } from "../ui/input"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { useAuth } from "@/hooks/use-auth"
-import { useCollection } from "@/firebase/firestore/use-collection"
-import { useFirebase } from "@/firebase/provider"
-import { collection } from "firebase/firestore"
+import { mockClassFacultyMapping, mockFaculty } from "@/lib/mock-data"
 
 interface ClassFacultyMappingTableProps {
 }
@@ -201,27 +199,13 @@ const getColumns = (allFaculty: Faculty[], allMappings: ClassFacultyMapping[]): 
 ]
 
 export function ClassFacultyMappingTable({}: ClassFacultyMappingTableProps) {
-    const { addMapping, user } = useAuth();
-    const { firestore } = useFirebase();
-
-    const mappingsQuery = React.useMemo(() => {
-        if (!firestore || !user || user.role !== 'admin') return null;
-        return collection(firestore, 'classFacultyMapping');
-    }, [firestore, user]);
-
-    const facultyQuery = React.useMemo(() => {
-        if (!firestore || !user || user.role !== 'admin') return null;
-        return collection(firestore, 'faculty');
-    }, [firestore, user]);
-
-    const { data: mappings } = useCollection<ClassFacultyMapping>(mappingsQuery);
-    const { data: faculty } = useCollection<Faculty>(facultyQuery);
+    const { addMapping } = useAuth();
 
     const [isAdding, setIsAdding] = React.useState<boolean>(false);
     const { toast } = useToast();
     
-    const allMappings = React.useMemo(() => mappings || [], [mappings]);
-    const allFaculty = React.useMemo(() => faculty || [], [faculty]);
+    const allMappings = React.useMemo(() => mockClassFacultyMapping || [], []);
+    const allFaculty = React.useMemo(() => mockFaculty || [], []);
     
     const columns = React.useMemo(() => getColumns(allFaculty, allMappings), [allFaculty, allMappings]);
 

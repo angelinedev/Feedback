@@ -24,9 +24,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "../ui/input"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
 import { useAuth } from "@/hooks/use-auth"
-import { useCollection } from "@/firebase/firestore/use-collection"
-import { useFirebase } from "@/firebase/provider"
-import { collection } from "firebase/firestore"
+import { mockStudents } from "@/lib/mock-data"
 
 interface StudentTableProps {
 }
@@ -197,20 +195,11 @@ const getColumns = (allStudents: Student[]): ColumnDef<Student>[] => [
 ]
 
 export function StudentTable({}: StudentTableProps) {
-    const { addStudent, user } = useAuth();
-    const { firestore } = useFirebase();
-
-    const studentsQuery = React.useMemo(() => {
-        if (!firestore || !user || user.role !== 'admin') return null;
-        return collection(firestore, 'students');
-    }, [firestore, user]);
-
-    const { data: students } = useCollection<Student>(studentsQuery);
-
+    const { addStudent } = useAuth();
     const [isAdding, setIsAdding] = React.useState(false);
     const { toast } = useToast();
 
-    const allStudents = React.useMemo(() => students || [], [students]);
+    const allStudents = React.useMemo(() => mockStudents || [], []);
     const columns = React.useMemo(() => getColumns(allStudents), [allStudents]);
 
     const handleAddSave = async (data: Omit<Student, 'id' | 'password'>, password?: string) => {
@@ -235,8 +224,7 @@ export function StudentTable({}: StudentTableProps) {
                     <DialogTrigger asChild>
                         <Button>
                             <PlusCircle className="mr-2 h-4 w-4" /> Add Student
-                        </Button>
-                    </DialogTrigger>
+                        </Button>                    </DialogTrigger>
                     <DialogContent>
                         <DialogHeader>
                             <DialogTitle>Add New Student</DialogTitle>

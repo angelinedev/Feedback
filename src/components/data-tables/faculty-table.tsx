@@ -24,9 +24,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
 import { Input } from "../ui/input"
 import { useAuth } from "@/hooks/use-auth"
-import { useCollection } from "@/firebase/firestore/use-collection"
-import { useFirebase } from "@/firebase/provider"
-import { collection } from "firebase/firestore"
+import { mockFaculty } from "@/lib/mock-data"
 
 interface FacultyTableProps {
 }
@@ -195,20 +193,12 @@ const getColumns = (allFaculty: Faculty[]): ColumnDef<Faculty>[] => [
 ];
 
 export function FacultyTable({}: FacultyTableProps) {
-    const { addFaculty, user } = useAuth();
-    const { firestore } = useFirebase();
-
-    const facultyQuery = React.useMemo(() => {
-        if (!firestore || !user || user.role !== 'admin') return null;
-        return collection(firestore, 'faculty');
-    }, [firestore, user]);
-    
-    const { data: faculty } = useCollection<Faculty>(facultyQuery);
+    const { addFaculty } = useAuth();
     
     const [isAdding, setIsAdding] = React.useState(false);
     const { toast } = useToast();
     
-    const allFaculty = React.useMemo(() => faculty || [], [faculty]);
+    const allFaculty = React.useMemo(() => mockFaculty || [], []);
     const columns = React.useMemo(() => getColumns(allFaculty), [allFaculty]);
 
     const handleAddSave = async (data: Omit<Faculty, 'id' | 'password'>, password?: string) => {

@@ -3,10 +3,8 @@
 
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useFirebase } from '@/firebase/provider';
 import type { Student, Faculty, Feedback, ClassFacultyMapping, Question } from '@/lib/types';
-import { collection, doc, addDoc, updateDoc, deleteDoc, writeBatch, where, getDocs, query, DocumentData } from 'firebase/firestore';
-import { useCollection } from '@/firebase/firestore/use-collection';
+import { mockStudents, mockFaculty, mockFeedback } from '@/lib/mock-data';
 
 export type UserRole = 'admin' | 'student' | 'faculty';
 
@@ -42,8 +40,13 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Mock data stores
+let students: Student[] = [...mockStudents];
+let faculty: Faculty[] = [...mockFaculty];
+let feedbacks: Feedback[] = [...mockFeedback];
+let mappings: ClassFacultyMapping[] = [];
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { firestore } = useFirebase();
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const router = useRouter();
@@ -79,17 +82,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   }, [user, authLoading, pathname, router]);
 
-  const findUserInFirestore = async (collectionName: string, idField: string, id: string, pass: string) => {
-    if (!firestore) return null;
-    const q = query(collection(firestore, collectionName), where(idField, '==', id));
-    const querySnapshot = await getDocs(q);
-    if (querySnapshot.empty) return null;
-
-    const userDoc = querySnapshot.docs[0];
-    const userData = userDoc.data() as DocumentData;
-
-    if (userData.password === pass) {
-      return { ...userData, id: userDoc.id } as Student | Faculty;
+  const findUserInMemory = <T extends { password?: string }>(collection: T[], idField: keyof T, id: string, pass: string): T | null => {
+    const user = collection.find(u => u[idField] === id);
+    if (user && user.password === pass) {
+      return user;
     }
     return null;
   }
@@ -103,12 +99,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         foundUser = { id: 'admin', name: 'Admin', role: 'admin', details: { id: 'admin', name: 'Admin' } };
       }
     } else if (role === 'student') {
-      const student = await findUserInFirestore('students', 'register_number', id, pass) as Student | null;
+      const student = findUserInMemory(students, 'register_number', id, pass);
       if (student) {
         foundUser = { id: student.id, name: student.name, role: 'student', details: student };
       }
     } else if (role === 'faculty') {
-      const facultyMember = await findUserInFirestore('faculty', 'faculty_id', id, pass) as Faculty | null;
+      const facultyMember = findUserInMemory(faculty, 'faculty_id', id, pass);
       if (facultyMember) {
         foundUser = { id: facultyMember.id, name: facultyMember.name, role: 'faculty', details: facultyMember };
       }
@@ -132,118 +128,85 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push('/');
   };
 
-  const updateStudentPassword = async (id: string, newPass: string) => {
-    if(!firestore) return;
-    await updateDoc(doc(firestore, 'students', id), { password: newPass });
-  };
-
-  const updateFacultyPassword = async (id: string, newPass: string) => {
-    if(!firestore) return;
-     await updateDoc(doc(firestore, 'faculty', id), { password: newPass });
-  };
-
   const changePassword = async (currentPassword: string, newPassword: string) => {
-    if (!user || !firestore) throw new Error("Not authenticated.");
-
+    if (!user) throw new Error("Not authenticated.");
+    
     let success = false;
-    let details: Student | Faculty;
-
     if (user.role === 'student') {
-        details = user.details as Student;
-        const q = query(collection(firestore, 'students'), where('register_number', '==', details.register_number));
-        const querySnapshot = await getDocs(q);
-        if(!querySnapshot.empty){
-            const userDoc = querySnapshot.docs[0];
-            if (userDoc.data().password === currentPassword) {
-                await updateDoc(userDoc.ref, { password: newPassword });
-                success = true;
-            }
+        const student = students.find(s => s.id === user.id);
+        if (student && student.password === currentPassword) {
+            student.password = newPassword;
+            success = true;
         }
     } else if (user.role === 'faculty') {
-        details = user.details as Faculty;
-        const q = query(collection(firestore, 'faculty'), where('faculty_id', '==', details.faculty_id));
-        const querySnapshot = await getDocs(q);
-        if(!querySnapshot.empty){
-            const userDoc = querySnapshot.docs[0];
-            if (userDoc.data().password === currentPassword) {
-                await updateDoc(userDoc.ref, { password: newPassword });
-                success = true;
-            }
+        const fac = faculty.find(f => f.id === user.id);
+        if (fac && fac.password === currentPassword) {
+            fac.password = newPassword;
+            success = true;
         }
-    } else if (user.role === 'admin') {
-      throw new Error("Admin password cannot be changed in this version.");
     }
     
     if (!success) {
       throw new Error("Incorrect current password.");
-    } else {
-        const updatedUser = {
-            ...user,
-            details: { ...user.details, password: newPassword }
-        };
-        setUser(updatedUser as User);
-        localStorage.setItem('feedloop-user', JSON.stringify(updatedUser));
     }
   };
-  
+
+  // Mock implementations for data management
   const addStudent = async (studentData: Omit<Student, 'id' | 'password'>, password: string) => {
-    if(!firestore) return;
-    await addDoc(collection(firestore, 'students'), { ...studentData, password });
+    const newStudent: Student = { ...studentData, id: `student-${Date.now()}`, password };
+    students.push(newStudent);
   };
   const updateStudent = async (id: string, data: Partial<Omit<Student, 'id'>>) => {
-    if(!firestore) return;
-    await updateDoc(doc(firestore, 'students', id), data);
+    students = students.map(s => s.id === id ? { ...s, ...data } : s);
   };
   const deleteStudent = async (id: string) => {
-    if(!firestore) return;
-    await deleteDoc(doc(firestore, 'students', id));
+    students = students.filter(s => s.id !== id);
+  };
+  const updateStudentPassword = async (id: string, newPass: string) => {
+      const student = students.find(s => s.id === id);
+      if (student) student.password = newPass;
   };
 
   const addFaculty = async (facultyData: Omit<Faculty, 'id' | 'password'>, password: string) => {
-    if(!firestore) return;
-    await addDoc(collection(firestore, 'faculty'), { ...facultyData, password });
+    const newFaculty: Faculty = { ...facultyData, id: `faculty-${Date.now()}`, password };
+    faculty.push(newFaculty);
   };
   const updateFaculty = async (id: string, data: Partial<Omit<Faculty, 'id'>>) => {
-    if(!firestore) return;
-    await updateDoc(doc(firestore, 'faculty', id), data);
+    faculty = faculty.map(f => f.id === id ? { ...f, ...data } : f);
   };
   const deleteFaculty = async (id: string) => {
-    if(!firestore) return;
-    await deleteDoc(doc(firestore, 'faculty', id));
+    faculty = faculty.filter(f => f.id !== id);
+  };
+  const updateFacultyPassword = async (id: string, newPass: string) => {
+      const fac = faculty.find(f => f.id === id);
+      if (fac) fac.password = newPass;
   };
 
   const addMapping = async (mappingData: Omit<ClassFacultyMapping, 'id'>) => {
-    if(!firestore) return;
-    await addDoc(collection(firestore, 'classFacultyMapping'), mappingData);
+    const newMapping: ClassFacultyMapping = { ...mappingData, id: `map-${Date.now()}` };
+    mappings.push(newMapping);
   };
   const updateMapping = async (id: string, data: Partial<Omit<ClassFacultyMapping, 'id'>>) => {
-    if(!firestore) return;
-    await updateDoc(doc(firestore, 'classFacultyMapping', id), data);
+    mappings = mappings.map(m => m.id === id ? { ...m, ...data } : m);
   };
   const deleteMapping = async (id: string) => {
-    if(!firestore) return;
-    await deleteDoc(doc(firestore, 'classFacultyMapping', id));
+    mappings = mappings.filter(m => m.id !== id);
   };
 
   const addFeedback = async (feedbackData: Omit<Feedback, 'id'>) => {
-    if(!firestore) return;
-    await addDoc(collection(firestore, 'feedback'), feedbackData);
+    const newFeedback: Feedback = { ...feedbackData, id: `fb-${Date.now()}`, submitted_at: new Date() };
+    feedbacks.push(newFeedback);
   };
 
-  const addBulk = async <T extends object>(collectionName: string, items: T[]) => {
-    if(!firestore) return;
-    const batch = writeBatch(firestore);
-    const collectionRef = collection(firestore, collectionName);
-    items.forEach(item => {
-        const docRef = doc(collectionRef);
-        batch.set(docRef, item);
-    });
-    await batch.commit();
+  const addBulkStudents = async (newStudents: Omit<Student, 'id'>[]) => {
+    newStudents.forEach(s => students.push({ ...s, id: `student-${Date.now()}-${Math.random()}`}));
   };
-
-  const addBulkStudents = (d: Omit<Student, 'id'>[]) => addBulk('students', d);
-  const addBulkFaculty = (d: Omit<Faculty, 'id'>[]) => addBulk('faculty', d);
-  const addBulkMappings = (d: Omit<ClassFacultyMapping, 'id'>[]) => addBulk('classFacultyMapping', d);
+  const addBulkFaculty = async (newFaculty: Omit<Faculty, 'id'>[]) => {
+    newFaculty.forEach(f => faculty.push({ ...f, id: `faculty-${Date.now()}-${Math.random()}`}));
+  };
+  const addBulkMappings = async (newMappings: Omit<ClassFacultyMapping, 'id'>[]) => {
+    newMappings.forEach(m => mappings.push({ ...m, id: `map-${Date.now()}-${Math.random()}`}));
+  };
   
   const value: AuthContextType = {
     user,
@@ -286,5 +249,3 @@ export function useAuthContext() {
   }
   return context;
 }
-
-    

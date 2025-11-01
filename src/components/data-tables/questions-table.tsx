@@ -16,10 +16,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { DataTable } from "./data-table"
 import type { Question } from "@/lib/types"
-import { useCollection } from "@/firebase/firestore/use-collection"
-import { useFirebase } from "@/firebase/provider"
-import { collection } from "firebase/firestore"
-import { useAuth } from "@/hooks/use-auth"
+import { mockQuestions } from "@/lib/mock-data"
 
 const ActionsCell = ({ question }: { question: Question }) => {
     // Add logic for Edit/Delete here
@@ -59,17 +56,7 @@ const columns: ColumnDef<Question>[] = [
 ]
 
 export function QuestionsTable() {
-    const { firestore } = useFirebase();
-    const { user } = useAuth();
-
-    const questionsQuery = React.useMemo(() => {
-        if (!firestore || !user) return null;
-        return collection(firestore, 'questions');
-    }, [firestore, user]);
-
-    const { data: questions } = useCollection<Question>(questionsQuery);
-    
-    const data = React.useMemo(() => questions || [], [questions]);
+    const data = React.useMemo(() => mockQuestions || [], []);
 
     const handleAdd = () => {
         alert("Opening form to add new question...")

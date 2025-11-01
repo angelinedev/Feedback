@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Question, Rating } from "@/lib/types";
 import { Loader2 } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
+import { mockQuestions } from "@/lib/mock-data";
 
 interface FeedbackFormProps {
   questions: Question[];
@@ -21,7 +22,8 @@ interface FeedbackFormProps {
   onSubmit: (facultyId: string, subject: string, ratings: Rating[], comment: string) => void;
 }
 
-export function FeedbackForm({ questions, facultyId, subject, onSubmit }: FeedbackFormProps) {
+export function FeedbackForm({ facultyId, subject, onSubmit }: FeedbackFormProps) {
+  const questions = mockQuestions;
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 

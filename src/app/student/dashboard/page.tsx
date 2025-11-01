@@ -10,64 +10,36 @@ import { FeedbackForm } from '@/components/feedback-form';
 import type { ClassFacultyMapping, Student, Feedback, Rating, Faculty, Question } from '@/lib/types';
 import { CheckCircle, Edit, KeyRound } from 'lucide-react';
 import { ChangePasswordDialog } from '@/components/change-password-dialog';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { useFirebase } from '@/firebase/provider';
-import { collection, query, where } from 'firebase/firestore';
+import { mockClassFacultyMapping, mockFaculty, mockFeedback, mockQuestions } from '@/lib/mock-data';
 
 export default function StudentDashboard() {
   const { user, addFeedback } = useAuth();
-  const { firestore } = useFirebase();
-
+  
   const student = user?.details as Student | undefined;
-
-  const mappingsQuery = useMemo(() => {
-    if (!firestore || !student?.class_name) return null;
-    return query(collection(firestore, 'classFacultyMapping'), where('class_name', '==', student.class_name));
-  }, [firestore, student?.class_name]);
-
-  const feedbackQuery = useMemo(() => {
-    if (!firestore || !student?.id) return null;
-    return query(collection(firestore, 'feedback'), where('student_id', '==', student.id));
-  }, [firestore, student?.id]);
-
-  const facultyQuery = useMemo(() => {
-    if (!firestore || !user || user.role !== 'student') return null;
-    return collection(firestore, 'faculty');
-  }, [firestore, user]);
-
-  const questionsQuery = useMemo(() => {
-    if (!firestore || !user || user.role !== 'student') return null;
-    return collection(firestore, 'questions');
-  }, [firestore, user]);
-
-  const { data: mappings } = useCollection<ClassFacultyMapping>(mappingsQuery);
-  const { data: feedback } = useCollection<Feedback>(feedbackQuery);
-  const { data: faculty } = useCollection<Faculty>(facultyQuery);
-  const { data: questions } = useCollection<Question>(questionsQuery);
-
+  
   const [selectedMapping, setSelectedMapping] = useState<(ClassFacultyMapping & { facultyName: string }) | null>(null);
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   
   const subjectsForStudent = useMemo(() => {
-    if (!student?.class_name || !mappings || !faculty) return [];
-    return mappings
+    if (!student?.class_name) return [];
+    return mockClassFacultyMapping
       .filter(mapping => mapping.class_name === student.class_name)
       .map(mapping => {
-        const facultyMember = faculty.find(f => f.faculty_id === mapping.faculty_id);
+        const facultyMember = mockFaculty.find(f => f.faculty_id === mapping.faculty_id);
         return {
           ...mapping,
           facultyName: facultyMember?.name || 'Unknown Faculty'
         };
       });
-  }, [student?.class_name, mappings, faculty]);
+  }, [student?.class_name]);
 
   const submittedFeedbackKeys = useMemo(() => {
-    if (!student || !feedback) return new Set();
-    const studentFeedback = feedback.filter(f => f.student_id === student.id);
+    if (!student) return new Set();
+    const studentFeedback = mockFeedback.filter(f => f.student_id === student.id);
     return new Set(
       studentFeedback.map(f => `${f.faculty_id}-${f.subject}`)
     );
-  }, [feedback, student]);
+  }, [student]);
 
 
   const handleFeedbackSubmit = (facultyId: string, subject: string, ratings: Rating[], comment: string) => {
@@ -116,8 +88,7 @@ export default function StudentDashboard() {
                 {isSubmitted ? (
                   <div className="flex items-center text-green-400">
                     <CheckCircle className="mr-2 h-5 w-5" />
-                    <p className="font-semibold">Feedback Submitted</p>
-                  </div>
+                    <p className="font-semibold">Feedback Submitted</p>                  </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">Your feedback is anonymous and valuable for improving teaching quality.</p>
                 )}
@@ -143,7 +114,7 @@ export default function StudentDashboard() {
                           </SheetDescription>
                         </SheetHeader>
                         <FeedbackForm
-                          questions={questions || []}
+                          questions={mockQuestions || []}
                           facultyId={selectedMapping.faculty_id}
                           subject={selectedMapping.subject}
                           onSubmit={handleFeedbackSubmit}
