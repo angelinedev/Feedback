@@ -4,16 +4,17 @@
 import { useState, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import type { Faculty, ClassFacultyMapping } from '@/lib/types';
+import type { Faculty } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { KeyRound } from 'lucide-react';
 import { ChangePasswordDialog } from '@/components/change-password-dialog';
+import { SubjectReportCard } from '@/components/subject-report-card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function FacultyDashboard() {
-  const { user, mappings } = useAuth();
+  const { user, mappings, feedback: allFeedback, faculty: allFaculty } = useAuth();
   
   const faculty = user?.details as Faculty | undefined;
-
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
 
   const assignedSubjects = useMemo(() => {
@@ -21,6 +22,15 @@ export default function FacultyDashboard() {
     return mappings.filter(mapping => mapping.faculty_id === faculty.faculty_id);
   }, [faculty?.faculty_id, mappings]);
 
+  const [selectedSubjectKey, setSelectedSubjectKey] = useState<string>(
+    assignedSubjects.length > 0 ? `${assignedSubjects[0].subject}-${assignedSubjects[0].class_name}` : ''
+  );
+
+  const selectedMapping = useMemo(() => {
+    if (!selectedSubjectKey) return null;
+    const [subject, className] = selectedSubjectKey.split('-');
+    return assignedSubjects.find(m => m.subject === subject && m.class_name === className) || null;
+  }, [selectedSubjectKey, assignedSubjects]);
 
   return (
     <div className="container mx-auto">
@@ -39,16 +49,46 @@ export default function FacultyDashboard() {
         </ChangePasswordDialog>
       </div>
 
-       <Card className="mb-8 shadow-2xl">
+      <div className="grid gap-6">
+        <Card className="shadow-2xl">
           <CardHeader>
-            <CardTitle>Reports</CardTitle>
+            <CardTitle>Feedback Report</CardTitle>
+            <CardDescription>Select one of your assigned subjects to see the detailed report.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground">
-              Your feedback reports are being generated. Please check back later.
-            </p>
+            {assignedSubjects.length > 0 ? (
+                <div className="space-y-6">
+                    <Select value={selectedSubjectKey} onValueChange={setSelectedSubjectKey}>
+                        <SelectTrigger className="w-[300px]">
+                            <SelectValue placeholder="Select a subject..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {assignedSubjects.map(m => (
+                                <SelectItem key={`${m.subject}-${m.class_name}`} value={`${m.subject}-${m.class_name}`}>
+                                    {m.subject} ({m.class_name})
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    
+                    {selectedMapping && faculty && (
+                        <div className="mt-4">
+                            <SubjectReportCard
+                                facultyId={faculty.faculty_id}
+                                subject={selectedMapping.subject}
+                                className={selectedMapping.class_name}
+                                allFeedback={allFeedback}
+                                allFaculty={allFaculty}
+                            />
+                        </div>
+                    )}
+                </div>
+            ) : (
+                <p className="text-muted-foreground">You are not currently assigned to any subjects.</p>
+            )}
           </CardContent>
         </Card>
+      </div>
     </div>
   );
 }

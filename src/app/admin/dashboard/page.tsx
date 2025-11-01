@@ -7,41 +7,24 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from '@/hooks/use-auth';
 import { ResponseRateChart } from '@/components/charts/response-rate-chart';
 import { FeedbackCriteriaChart } from '@/components/charts/feedback-criteria-chart';
-
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import type { Faculty } from '@/lib/types';
+import { SubjectReportCard } from '@/components/subject-report-card';
 
 export default function AdminDashboard() {
-  const { feedback: allFeedback, students: allStudents, mappings: allMappings } = useAuth();
+  const { feedback: allFeedback, students: allStudents, mappings: allMappings, faculty: allFaculty } = useAuth();
   
   const totalPossibleFeedback = useMemo(() => {
-    // This is a simplified calculation. A real app might need to be more precise
-    // about which students are mapped to which classes/subjects.
     if (!allStudents.length || !allMappings.length) return 0;
-    
-    // Create a set of unique classes from the student list
-    const studentClasses = new Set(allStudents.map(s => s.class_name));
-    
-    // Count how many mappings apply to the classes students are actually in
-    const relevantMappings = allMappings.filter(m => studentClasses.has(m.class_name));
-
-    // Get a map of class -> student count
     const studentCountByClass = allStudents.reduce((acc, student) => {
         acc[student.class_name] = (acc[student.class_name] || 0) + 1;
         return acc;
     }, {} as Record<string, number>);
 
-    // Total is the sum of students in each class multiplied by the number of subjects for that class
-    let total = 0;
-    relevantMappings.forEach(mapping => {
-        total += studentCountByClass[mapping.class_name] || 0;
-    });
-    
-    // This simple loop can lead to double counting if a class has multiple mappings
-    // A more accurate approach:
     const totalSubmissionsPossible = Object.entries(studentCountByClass).reduce((acc, [className, studentCount]) => {
         const subjectsForClass = allMappings.filter(m => m.class_name === className).length;
         return acc + (studentCount * subjectsForClass);
     }, 0);
-
 
     return totalSubmissionsPossible;
   }, [allStudents, allMappings]);
@@ -65,6 +48,10 @@ export default function AdminDashboard() {
     });
     return ratingCount > 0 ? (totalRating / ratingCount) : 0;
   }, [allFeedback]);
+
+  const uniqueClasses = useMemo(() => {
+    return [...new Set(allMappings.map(m => m.class_name))].sort();
+  }, [allMappings]);
 
   return (
     <>
@@ -126,8 +113,8 @@ export default function AdminDashboard() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
             <Card className="shadow-2xl">
               <CardHeader>
-                <CardTitle>Response Rate</CardTitle>
-                <CardDescription>Percentage of students who have submitted feedback.</CardDescription>
+                <CardTitle>Overall Response Rate</CardTitle>
+                <CardDescription>Percentage of students who have submitted feedback across all classes.</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponseRateChart submitted={uniqueSubmissions} total={totalPossibleFeedback} />
@@ -135,14 +122,96 @@ export default function AdminDashboard() {
             </Card>
             <Card className="shadow-2xl">
               <CardHeader>
-                <CardTitle>Feedback Criteria Analysis</CardTitle>
-                <CardDescription>Average ratings for each feedback question.</CardDescription>
+                <CardTitle>Overall Feedback Criteria Analysis</CardTitle>
+                <CardDescription>Average ratings for each feedback question across all submissions.</CardDescription>
               </CardHeader>
               <CardContent>
                 <FeedbackCriteriaChart feedback={allFeedback} />
               </CardContent>
             </Card>
         </div>
+
+        <Separator className="my-4" />
+
+        <Card className="shadow-2xl">
+          <CardHeader>
+            <CardTitle>Faculty Feedback Analysis</CardTitle>
+            <CardDescription>Review detailed feedback reports for each faculty member.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Accordion type="single" collapsible className="w-full">
+              {allFaculty.sort((a,b) => a.name.localeCompare(b.name)).map(faculty => {
+                const facultyMappings = allMappings.filter(m => m.faculty_id === faculty.faculty_id);
+                if (facultyMappings.length === 0) return null;
+                
+                return (
+                  <AccordionItem value={faculty.id} key={faculty.id}>
+                    <AccordionTrigger className="hover:bg-muted/50 px-4 rounded-md">
+                      <div>
+                        <div className="font-bold text-base">{faculty.name}</div>
+                        <div className="text-sm text-muted-foreground">{faculty.department} ({faculty.faculty_id})</div>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="p-4 bg-muted/20 rounded-b-md">
+                        <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2">
+                           {facultyMappings.map(mapping => (
+                             <SubjectReportCard
+                                key={`${mapping.faculty_id}-${mapping.subject}-${mapping.class_name}`}
+                                facultyId={mapping.faculty_id}
+                                subject={mapping.subject}
+                                className={mapping.class_name}
+                                allFeedback={allFeedback}
+                                allFaculty={allFaculty}
+                             />
+                           ))}
+                        </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                )
+              })}
+            </Accordion>
+          </CardContent>
+        </Card>
+
+        <Separator className="my-4" />
+
+        <Card className="shadow-2xl">
+          <CardHeader>
+            <CardTitle>Class Feedback Analysis</CardTitle>
+            <CardDescription>Review detailed feedback reports for each class.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Accordion type="single" collapsible className="w-full">
+                {uniqueClasses.map(className => {
+                   const classMappings = allMappings.filter(m => m.class_name === className);
+                   if(classMappings.length === 0) return null;
+
+                   return (
+                    <AccordionItem value={className} key={className}>
+                        <AccordionTrigger className="hover:bg-muted/50 px-4 rounded-md">
+                           <div className="font-bold text-base">{className}</div>
+                        </AccordionTrigger>
+                         <AccordionContent className="p-4 bg-muted/20 rounded-b-md">
+                            <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2">
+                               {classMappings.map(mapping => (
+                                 <SubjectReportCard
+                                    key={`${mapping.faculty_id}-${mapping.subject}-${mapping.class_name}`}
+                                    facultyId={mapping.faculty_id}
+                                    subject={mapping.subject}
+                                    className={mapping.class_name}
+                                    allFeedback={allFeedback}
+                                    allFaculty={allFaculty}
+                                 />
+                               ))}
+                            </div>
+                        </AccordionContent>
+                    </AccordionItem>
+                   )
+                })}
+            </Accordion>
+          </CardContent>
+        </Card>
+
       </div>
     </>
   )
