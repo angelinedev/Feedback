@@ -12,8 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFirebase } from "@/firebase/provider";
-import { createUserWithEmailAndPassword, signOut } from "firebase/auth";
-import { doc, setDoc, writeBatch, getDoc } from "firebase/firestore";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { doc, setDoc, writeBatch } from "firebase/firestore";
 
 const setupSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters long."),
@@ -46,29 +46,26 @@ export default function SetupAdminPage() {
         throw new Error("Firebase not initialized");
       }
       
-      // Attempt to create the user. This will fail if the user already exists, which is fine.
+      let uid: string;
+      
       try {
-        await createUserWithEmailAndPassword(auth, adminEmail, values.password);
-      } catch (authError: any) {
-        if (authError.code !== 'auth/email-already-in-use') {
-          // If it's an error other than "already exists", throw it.
-          throw authError;
+        // First, try to create the user.
+        const userCredential = await createUserWithEmailAndPassword(auth, adminEmail, values.password);
+        uid = userCredential.user.uid;
+        toast({ title: "Admin user created successfully." });
+      } catch (error: any) {
+        if (error.code === 'auth/email-already-in-use') {
+          // If user exists, sign in to get their UID and confirm password.
+          toast({ title: "Admin user already exists.", description: "Attempting to update roles." });
+          const userCredential = await signInWithEmailAndPassword(auth, adminEmail, values.password);
+          uid = userCredential.user.uid;
+        } else {
+          // For any other auth error, re-throw it.
+          throw error;
         }
-        // If user exists, we'll just ensure their roles are set correctly.
-        // We might need to sign them in temporarily to get their UID if we don't have it.
-        // For this setup, we assume if it fails, we can't proceed with password changes, but we can still set firestore rules.
       }
-      
-      // Temporarily sign in as the admin to get the UID, then sign out.
-      const tempUserCredential = await createUserWithEmailAndPassword(auth, `temp-setup-${Date.now()}@test.com`, 'password123');
-      const tempUser = tempUserCredential.user;
-      await signOut(auth); // Sign out the temporary user
-      
-      // Now sign in the actual admin to get their real UID.
-      const userCredential = await createUserWithEmailAndPassword(auth, adminEmail, values.password);
-      const uid = userCredential.user.uid;
 
-      // Use the UID to create the necessary Firestore documents.
+      // At this point, we have the UID. Now, create the Firestore documents.
       const batch = writeBatch(firestore);
       
       const userRoleRef = doc(firestore, "users", uid);
@@ -79,19 +76,16 @@ export default function SetupAdminPage() {
 
       await batch.commit();
       
-      // Sign out the newly created admin user so the user can log in normally.
-      await signOut(auth);
-
       toast({
-        title: "Admin Account Created!",
+        title: "Admin Account Setup Complete!",
         description: "You can now log in using the home page.",
       });
       setSuccess(true);
 
     } catch (error: any) {
       console.error(error);
-      const description = error.code === 'auth/email-already-in-use'
-        ? 'Admin account already seems to exist. If you forgot the password, you may need to reset it in the Firebase Console.'
+      const description = error.code === 'auth/invalid-credential' 
+        ? 'The existing admin user password does not match. Please try again with the correct password, or reset it in the Firebase Console.'
         : error.message || "An unexpected error occurred.";
       
       toast({
@@ -101,7 +95,7 @@ export default function SetupAdminPage() {
       });
 
     } finally {
-      // Ensure we're fully signed out at the end of the process
+      // Ensure we are signed out so the user has to log in fresh.
       if (auth?.currentUser) {
         await signOut(auth);
       }
@@ -115,14 +109,14 @@ export default function SetupAdminPage() {
         <CardHeader>
           <CardTitle>Admin Account Setup</CardTitle>
           <CardDescription>
-            This is a one-time setup to create your admin user in the database. Use this page if the admin account does not exist or you need to reset its records.
+            Create your master admin account. If the account already exists, this will ensure its roles are set correctly (you'll need to enter the existing password).
           </CardDescription>
         </CardHeader>
         <CardContent>
           {success ? (
              <div className="text-center">
                 <p className="text-green-400 font-bold mb-4">Setup Complete!</p>
-                <p className="text-muted-foreground">You can now proceed to the login page and use the credentials you just created.</p>
+                <p className="text-muted-foreground">You can now proceed to the login page and use the credentials you just set.</p>
                 <Button onClick={() => window.location.href = '/'} className="mt-4 w-full">
                     Go to Login
                 </Button>
@@ -162,7 +156,7 @@ export default function SetupAdminPage() {
                 />
                 <Button type="submit" disabled={loading} className="w-full">
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Create Admin Account
+                  Create / Verify Admin Account
                 </Button>
               </form>
             </Form>

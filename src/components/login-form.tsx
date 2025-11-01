@@ -42,7 +42,7 @@ export default function LoginForm() {
         toast({
           variant: "destructive",
           title: "Login Failed",
-          description: "Invalid credentials. Please try again.",
+          description: "Invalid credentials. Please check your ID and password.",
         });
       }
     } catch (error) {
@@ -60,7 +60,7 @@ export default function LoginForm() {
     let idLabel = "ID";
     let idPlaceholder = "Enter your ID";
     let idType = "text";
-    let idValue = "";
+    let idValue: string | undefined = undefined;
     
     if (role === "admin") {
       idLabel = "Admin ID"
@@ -78,7 +78,7 @@ export default function LoginForm() {
       <form onSubmit={handleSubmit} className="grid gap-4">
         <div className="grid gap-2">
           <Label htmlFor={`${role}-id`}>{idLabel}</Label>
-          <Input id={`${role}-id`} name="id" type={idType} placeholder={idPlaceholder} required defaultValue={idValue} />
+          <Input id={`${role}-id`} name="id" type={idType} placeholder={idPlaceholder} required defaultValue={idValue} readOnly={role === 'admin'} />
         </div>
         <div className="grid gap-2">
           <Label htmlFor={`${role}-password`}>Password</Label>
