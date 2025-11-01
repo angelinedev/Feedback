@@ -24,7 +24,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "../ui/input"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
 import { useAuth } from "@/hooks/use-auth"
-import { mockStudents } from "@/lib/mock-data"
 
 interface StudentTableProps {
 }
@@ -195,11 +194,10 @@ const getColumns = (allStudents: Student[]): ColumnDef<Student>[] => [
 ]
 
 export function StudentTable({}: StudentTableProps) {
-    const { addStudent } = useAuth();
+    const { addStudent, students: allStudents } = useAuth();
     const [isAdding, setIsAdding] = React.useState(false);
     const { toast } = useToast();
 
-    const allStudents = React.useMemo(() => mockStudents || [], []);
     const columns = React.useMemo(() => getColumns(allStudents), [allStudents]);
 
     const handleAddSave = async (data: Omit<Student, 'id' | 'password'>, password?: string) => {

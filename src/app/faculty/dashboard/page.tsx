@@ -8,10 +8,9 @@ import type { Faculty, ClassFacultyMapping } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { KeyRound } from 'lucide-react';
 import { ChangePasswordDialog } from '@/components/change-password-dialog';
-import { mockClassFacultyMapping } from '@/lib/mock-data';
 
 export default function FacultyDashboard() {
-  const { user, changePassword } = useAuth();
+  const { user, mappings } = useAuth();
   
   const faculty = user?.details as Faculty | undefined;
 
@@ -19,8 +18,8 @@ export default function FacultyDashboard() {
 
   const assignedSubjects = useMemo(() => {
     if (!faculty?.faculty_id) return [];
-    return mockClassFacultyMapping.filter(mapping => mapping.faculty_id === faculty.faculty_id);
-  }, [faculty?.faculty_id]);
+    return mappings.filter(mapping => mapping.faculty_id === faculty.faculty_id);
+  }, [faculty?.faculty_id, mappings]);
 
 
   return (

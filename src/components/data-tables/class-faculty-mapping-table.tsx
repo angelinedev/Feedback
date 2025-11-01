@@ -25,7 +25,6 @@ import { Input } from "../ui/input"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { useAuth } from "@/hooks/use-auth"
-import { mockClassFacultyMapping, mockFaculty } from "@/lib/mock-data"
 
 interface ClassFacultyMappingTableProps {
 }
@@ -199,13 +198,10 @@ const getColumns = (allFaculty: Faculty[], allMappings: ClassFacultyMapping[]): 
 ]
 
 export function ClassFacultyMappingTable({}: ClassFacultyMappingTableProps) {
-    const { addMapping } = useAuth();
+    const { addMapping, mappings: allMappings, faculty: allFaculty } = useAuth();
 
     const [isAdding, setIsAdding] = React.useState<boolean>(false);
     const { toast } = useToast();
-    
-    const allMappings = React.useMemo(() => mockClassFacultyMapping || [], []);
-    const allFaculty = React.useMemo(() => mockFaculty || [], []);
     
     const columns = React.useMemo(() => getColumns(allFaculty, allMappings), [allFaculty, allMappings]);
 

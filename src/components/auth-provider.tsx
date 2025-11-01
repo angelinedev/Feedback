@@ -4,7 +4,7 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import type { Student, Faculty, Feedback, ClassFacultyMapping, Question } from '@/lib/types';
-import { mockStudents, mockFaculty, mockFeedback } from '@/lib/mock-data';
+import { mockStudents, mockFaculty, mockFeedback as initialFeedback, mockClassFacultyMapping as initialMappings } from '@/lib/mock-data';
 
 export type UserRole = 'admin' | 'student' | 'faculty';
 
@@ -36,19 +36,24 @@ interface AuthContextType {
   addBulkStudents: (students: Omit<Student, 'id'>[]) => Promise<void>;
   addBulkFaculty: (faculty: Omit<Faculty, 'id'>[]) => Promise<void>;
   addBulkMappings: (mappings: Omit<ClassFacultyMapping, 'id'>[]) => Promise<void>;
+  students: Student[];
+  faculty: Faculty[];
+  mappings: ClassFacultyMapping[];
+  feedback: Feedback[];
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock data stores
-let students: Student[] = [...mockStudents];
-let faculty: Faculty[] = [...mockFaculty];
-let feedbacks: Feedback[] = [...mockFeedback];
-let mappings: ClassFacultyMapping[] = [];
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+
+  // Use React state to manage mock data so UI updates on change
+  const [students, setStudents] = useState<Student[]>([...mockStudents]);
+  const [faculty, setFaculty] = useState<Faculty[]>([...mockFaculty]);
+  const [feedbacks, setFeedbacks] = useState<Feedback[]>([...initialFeedback]);
+  const [mappings, setMappings] = useState<ClassFacultyMapping[]>([...initialMappings]);
+  
   const router = useRouter();
   const pathname = usePathname();
 
@@ -133,17 +138,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     let success = false;
     if (user.role === 'student') {
-        const student = students.find(s => s.id === user.id);
-        if (student && student.password === currentPassword) {
-            student.password = newPassword;
+        setStudents(prev => prev.map(s => {
+          if (s.id === user.id && s.password === currentPassword) {
             success = true;
-        }
+            return { ...s, password: newPassword };
+          }
+          return s;
+        }));
     } else if (user.role === 'faculty') {
-        const fac = faculty.find(f => f.id === user.id);
-        if (fac && fac.password === currentPassword) {
-            fac.password = newPassword;
+        setFaculty(prev => prev.map(f => {
+          if (f.id === user.id && f.password === currentPassword) {
             success = true;
-        }
+            return { ...f, password: newPassword };
+          }
+          return f;
+        }));
     }
     
     if (!success) {
@@ -151,61 +160,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Mock implementations for data management
+  // Data management functions now use setState to trigger re-renders
   const addStudent = async (studentData: Omit<Student, 'id' | 'password'>, password: string) => {
     const newStudent: Student = { ...studentData, id: `student-${Date.now()}`, password };
-    students.push(newStudent);
+    setStudents(prev => [...prev, newStudent]);
   };
   const updateStudent = async (id: string, data: Partial<Omit<Student, 'id'>>) => {
-    students = students.map(s => s.id === id ? { ...s, ...data } : s);
+    setStudents(prev => prev.map(s => s.id === id ? { ...s, ...data } : s));
   };
   const deleteStudent = async (id: string) => {
-    students = students.filter(s => s.id !== id);
+    setStudents(prev => prev.filter(s => s.id !== id));
   };
   const updateStudentPassword = async (id: string, newPass: string) => {
-      const student = students.find(s => s.id === id);
-      if (student) student.password = newPass;
+      setStudents(prev => prev.map(s => s.id === id ? { ...s, password: newPass } : s));
   };
 
   const addFaculty = async (facultyData: Omit<Faculty, 'id' | 'password'>, password: string) => {
     const newFaculty: Faculty = { ...facultyData, id: `faculty-${Date.now()}`, password };
-    faculty.push(newFaculty);
+    setFaculty(prev => [...prev, newFaculty]);
   };
   const updateFaculty = async (id: string, data: Partial<Omit<Faculty, 'id'>>) => {
-    faculty = faculty.map(f => f.id === id ? { ...f, ...data } : f);
+    setFaculty(prev => prev.map(f => f.id === id ? { ...f, ...data } : f));
   };
   const deleteFaculty = async (id: string) => {
-    faculty = faculty.filter(f => f.id !== id);
+    setFaculty(prev => prev.filter(f => f.id !== id));
   };
   const updateFacultyPassword = async (id: string, newPass: string) => {
-      const fac = faculty.find(f => f.id === id);
-      if (fac) fac.password = newPass;
+      setFaculty(prev => prev.map(f => f.id === id ? { ...f, password: newPass } : f));
   };
 
   const addMapping = async (mappingData: Omit<ClassFacultyMapping, 'id'>) => {
     const newMapping: ClassFacultyMapping = { ...mappingData, id: `map-${Date.now()}` };
-    mappings.push(newMapping);
+    setMappings(prev => [...prev, newMapping]);
   };
   const updateMapping = async (id: string, data: Partial<Omit<ClassFacultyMapping, 'id'>>) => {
-    mappings = mappings.map(m => m.id === id ? { ...m, ...data } : m);
+    setMappings(prev => prev.map(m => m.id === id ? { ...m, ...data } : m));
   };
   const deleteMapping = async (id: string) => {
-    mappings = mappings.filter(m => m.id !== id);
+    setMappings(prev => prev.filter(m => m.id !== id));
   };
 
   const addFeedback = async (feedbackData: Omit<Feedback, 'id'>) => {
     const newFeedback: Feedback = { ...feedbackData, id: `fb-${Date.now()}`, submitted_at: new Date() };
-    feedbacks.push(newFeedback);
+    setFeedbacks(prev => [...prev, newFeedback]);
   };
 
   const addBulkStudents = async (newStudents: Omit<Student, 'id'>[]) => {
-    newStudents.forEach(s => students.push({ ...s, id: `student-${Date.now()}-${Math.random()}`}));
+    const studentsToAdd = newStudents.map(s => ({ ...s, id: `student-${Date.now()}-${Math.random()}`}));
+    setStudents(prev => [...prev, ...studentsToAdd]);
   };
   const addBulkFaculty = async (newFaculty: Omit<Faculty, 'id'>[]) => {
-    newFaculty.forEach(f => faculty.push({ ...f, id: `faculty-${Date.now()}-${Math.random()}`}));
+    const facultyToAdd = newFaculty.map(f => ({ ...f, id: `faculty-${Date.now()}-${Math.random()}`}));
+    setFaculty(prev => [...prev, ...facultyToAdd]);
   };
   const addBulkMappings = async (newMappings: Omit<ClassFacultyMapping, 'id'>[]) => {
-    newMappings.forEach(m => mappings.push({ ...m, id: `map-${Date.now()}-${Math.random()}`}));
+    const mappingsToAdd = newMappings.map(m => ({ ...m, id: `map-${Date.now()}-${Math.random()}`}));
+    setMappings(prev => [...prev, ...mappingsToAdd]);
   };
   
   const value: AuthContextType = {
@@ -229,6 +239,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     addBulkStudents,
     addBulkFaculty,
     addBulkMappings,
+    students,
+    faculty,
+    mappings,
+    feedback: feedbacks,
   };
 
   if (authLoading) {

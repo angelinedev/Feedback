@@ -1,29 +1,24 @@
 
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Upload, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import type { Student, Faculty, ClassFacultyMapping } from '@/lib/types';
-import { mockStudents, mockFaculty } from '@/lib/mock-data';
 
 interface BulkUploadProps {
   type: 'students' | 'faculty' | 'mappings';
 }
 
 export function BulkUpload({ type }: BulkUploadProps) {
-  const { addBulkStudents, addBulkFaculty, addBulkMappings } = useAuth();
+  const { addBulkStudents, addBulkFaculty, addBulkMappings, students: allStudents, faculty: allFaculty } = useAuth();
   const { toast } = useToast();
   
   const [csvData, setCsvData] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
-  const allStudents = useMemo(() => mockStudents, []);
-  const allFaculty = useMemo(() => mockFaculty, []);
 
   const config = {
     students: {
@@ -57,10 +52,17 @@ export function BulkUpload({ type }: BulkUploadProps) {
     const results: T[] = [];
     const lines = csvText.split(/\r\n|\n/).filter(line => line.trim() !== '');
     
+    if (lines.length === 0) return [];
+
     const pastedHeaders = lines[0].split(',').map(h => h.trim());
     const hasCorrectHeaders = headers.every((h, i) => pastedHeaders[i] === String(h));
 
-    const dataLines = hasCorrectHeaders ? lines.slice(1) : lines;
+    if (!hasCorrectHeaders) {
+        toast({ variant: 'destructive', title: 'Invalid Headers', description: `CSV headers must be exactly: ${headers.join(', ')}` });
+        return [];
+    }
+
+    const dataLines = lines.slice(1);
 
     for (const line of dataLines) {
         const values = line.split(',').map(v => v.trim());
@@ -80,6 +82,10 @@ export function BulkUpload({ type }: BulkUploadProps) {
     setIsLoading(true);
     try {
       const newStudents = processCsv<any>(csvData, config.headers as any);
+      if (newStudents.length === 0) {
+        setIsLoading(false);
+        return;
+      };
       
       const existingRegNumbers = new Set(allStudents.map(s => s.register_number));
       const validNewStudents = newStudents.filter(s => s.register_number && !existingRegNumbers.has(s.register_number));
@@ -105,6 +111,10 @@ export function BulkUpload({ type }: BulkUploadProps) {
     setIsLoading(true);
     try {
        const newFaculty = processCsv<any>(csvData, config.headers as any);
+        if (newFaculty.length === 0) {
+            setIsLoading(false);
+            return;
+        };
 
        const existingFacultyIds = new Set(allFaculty.map(f => f.faculty_id));
        const validNewFaculty = newFaculty.filter(f => f.faculty_id && !existingFacultyIds.has(f.faculty_id));
@@ -130,6 +140,10 @@ export function BulkUpload({ type }: BulkUploadProps) {
     setIsLoading(true);
     try {
        const newMappings = processCsv<any>(csvData, config.headers as any);
+        if (newMappings.length === 0) {
+            setIsLoading(false);
+            return;
+        };
        const validNewMappings = newMappings.filter(m => m.class_name && m.faculty_id && m.subject);
 
        if(validNewMappings.length > 0) {
@@ -149,7 +163,7 @@ export function BulkUpload({ type }: BulkUploadProps) {
   };
 
   return (
-    <Card className="shadow-2xl mb-6">
+    <Card className="shadow-2xl">
         <CardHeader>
         <CardTitle>{config.title}</CardTitle>
         <CardDescription>

@@ -5,40 +5,65 @@ import { useMemo } from 'react';
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from '@/hooks/use-auth';
-import { mockClassFacultyMapping, mockFeedback, mockStudents } from '@/lib/mock-data';
 import { ResponseRateChart } from '@/components/charts/response-rate-chart';
 import { FeedbackCriteriaChart } from '@/components/charts/feedback-criteria-chart';
-import { BarChart, Users, CheckCircle } from 'lucide-react';
 
 
 export default function AdminDashboard() {
-  const { user } = useAuth();
+  const { feedback: allFeedback, students: allStudents, mappings: allMappings } = useAuth();
   
-  const allFeedback = useMemo(() => mockFeedback, []);
-  const allStudents = useMemo(() => mockStudents, []);
-  const allMappings = useMemo(() => mockClassFacultyMapping, []);
-
   const totalPossibleFeedback = useMemo(() => {
-    return allStudents.length * allMappings.length;
+    // This is a simplified calculation. A real app might need to be more precise
+    // about which students are mapped to which classes/subjects.
+    if (!allStudents.length || !allMappings.length) return 0;
+    
+    // Create a set of unique classes from the student list
+    const studentClasses = new Set(allStudents.map(s => s.class_name));
+    
+    // Count how many mappings apply to the classes students are actually in
+    const relevantMappings = allMappings.filter(m => studentClasses.has(m.class_name));
+
+    // Get a map of class -> student count
+    const studentCountByClass = allStudents.reduce((acc, student) => {
+        acc[student.class_name] = (acc[student.class_name] || 0) + 1;
+        return acc;
+    }, {} as Record<string, number>);
+
+    // Total is the sum of students in each class multiplied by the number of subjects for that class
+    let total = 0;
+    relevantMappings.forEach(mapping => {
+        total += studentCountByClass[mapping.class_name] || 0;
+    });
+    
+    // This simple loop can lead to double counting if a class has multiple mappings
+    // A more accurate approach:
+    const totalSubmissionsPossible = Object.entries(studentCountByClass).reduce((acc, [className, studentCount]) => {
+        const subjectsForClass = allMappings.filter(m => m.class_name === className).length;
+        return acc + (studentCount * subjectsForClass);
+    }, 0);
+
+
+    return totalSubmissionsPossible;
   }, [allStudents, allMappings]);
+  
+  const uniqueSubmissions = useMemo(() => new Set(allFeedback.map(f => `${f.student_id}-${f.faculty_id}-${f.subject}`)).size, [allFeedback]);
 
   const responseRate = useMemo(() => {
     if (totalPossibleFeedback === 0) return 0;
-    const uniqueStudentFeedback = new Set(allFeedback.map(f => `${f.student_id}-${f.subject}`)).size;
-    return (uniqueStudentFeedback / (allStudents.length * allMappings.filter(m => m.class_name === 'CS-A').length) * 100); // Simplified for one class
-  }, [allFeedback, allStudents, allMappings, totalPossibleFeedback]);
+    return (uniqueSubmissions / totalPossibleFeedback) * 100;
+  }, [uniqueSubmissions, totalPossibleFeedback]);
 
   const overallAverageRating = useMemo(() => {
     if (allFeedback.length === 0) return 0;
     let totalRating = 0;
     let ratingCount = 0;
     allFeedback.forEach(fb => {
-      fb.ratings.forEach(r => {
+      (fb.ratings || []).forEach(r => {
         totalRating += r.rating;
         ratingCount++;
       });
     });
-    return (totalRating / ratingCount);
+    return ratingCount > 0 ? (totalRating / ratingCount) : 0;
   }, [allFeedback]);
 
   return (
@@ -59,7 +84,7 @@ export default function AdminDashboard() {
             <Card className="shadow-2xl">
               <CardHeader className="pb-2">
                 <CardDescription>Total Submissions</CardDescription>
-                <CardTitle className="text-4xl">{new Set(allFeedback.map(f => `${f.student_id}-${f.subject}`)).size}</CardTitle>
+                <CardTitle className="text-4xl">{uniqueSubmissions}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-xs text-muted-foreground">Out of {totalPossibleFeedback} possible</div>
@@ -72,7 +97,7 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-xs text-muted-foreground">
-                   {new Set(allFeedback.map(f => `${f.student_id}-${f.subject}`)).size} of {totalPossibleFeedback} completed
+                   {uniqueSubmissions} of {totalPossibleFeedback} completed
                 </div>
               </CardContent>
             </Card>
@@ -105,7 +130,7 @@ export default function AdminDashboard() {
                 <CardDescription>Percentage of students who have submitted feedback.</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponseRateChart submitted={new Set(allFeedback.map(f => `${f.student_id}-${f.subject}`)).size} total={totalPossibleFeedback} />
+                <ResponseRateChart submitted={uniqueSubmissions} total={totalPossibleFeedback} />
               </CardContent>
             </Card>
             <Card className="shadow-2xl">

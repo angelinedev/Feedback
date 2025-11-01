@@ -7,13 +7,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { FeedbackForm } from '@/components/feedback-form';
-import type { ClassFacultyMapping, Student, Feedback, Rating, Faculty, Question } from '@/lib/types';
+import type { ClassFacultyMapping, Student, Feedback, Rating } from '@/lib/types';
 import { CheckCircle, Edit, KeyRound } from 'lucide-react';
 import { ChangePasswordDialog } from '@/components/change-password-dialog';
-import { mockClassFacultyMapping, mockFaculty, mockFeedback, mockQuestions } from '@/lib/mock-data';
+import { mockQuestions } from '@/lib/mock-data';
 
 export default function StudentDashboard() {
-  const { user, addFeedback } = useAuth();
+  const { user, addFeedback, faculty: allFaculty, mappings: allMappings, feedback: allFeedback } = useAuth();
   
   const student = user?.details as Student | undefined;
   
@@ -22,24 +22,24 @@ export default function StudentDashboard() {
   
   const subjectsForStudent = useMemo(() => {
     if (!student?.class_name) return [];
-    return mockClassFacultyMapping
+    return allMappings
       .filter(mapping => mapping.class_name === student.class_name)
       .map(mapping => {
-        const facultyMember = mockFaculty.find(f => f.faculty_id === mapping.faculty_id);
+        const facultyMember = allFaculty.find(f => f.faculty_id === mapping.faculty_id);
         return {
           ...mapping,
           facultyName: facultyMember?.name || 'Unknown Faculty'
         };
       });
-  }, [student?.class_name]);
+  }, [student?.class_name, allMappings, allFaculty]);
 
   const submittedFeedbackKeys = useMemo(() => {
     if (!student) return new Set();
-    const studentFeedback = mockFeedback.filter(f => f.student_id === student.id);
+    const studentFeedback = allFeedback.filter(f => f.student_id === student.id);
     return new Set(
       studentFeedback.map(f => `${f.faculty_id}-${f.subject}`)
     );
-  }, [student]);
+  }, [student, allFeedback]);
 
 
   const handleFeedbackSubmit = (facultyId: string, subject: string, ratings: Rating[], comment: string) => {
