@@ -2,43 +2,8 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    match /students/{studentId} {
-      allow read, update, delete: if isOwner(studentId);
-      allow create: if isSignedIn();
-      allow list: if isSignedIn();
-    }
-
-    match /faculty/{facultyId} {
-      allow read, update, delete: if isOwner(facultyId);
-      allow create: if isSignedIn();
-      allow list: if isSignedIn();
-    }
-
-    match /questions/{questionId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if false; 
-    }
-
-    match /classFacultyMapping/{mappingId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if false;
-    }
-
-    match /feedback/{feedbackId} {
-      allow create: if isSignedIn() && request.resource.data.student_id == request.auth.uid;
-      allow read, list: if isSignedIn();
-      allow update, delete: if false;
+    match /{document=**} {
+      allow read, write: if true;
     }
   }
 }
-
-    
