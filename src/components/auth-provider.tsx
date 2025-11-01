@@ -229,12 +229,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ): Promise<boolean> => {
     try {
       if (!auth) throw new Error("Auth not initialized");
-      const email =
-        role === 'admin'
-          ? 'admin@feedloop.com'
-          : role === 'student'
-          ? `${id}@student.jce.com`
-          : `${id}@faculty.jce.com`;
+      let email: string;
+      switch (role) {
+        case 'admin':
+          email = 'admin@feedloop.com';
+          break;
+        case 'student':
+          email = `${id}@student.jce.com`;
+          break;
+        case 'faculty':
+          email = `${id}@faculty.jce.com`;
+          break;
+        default:
+          throw new Error('Invalid role specified for login');
+      }
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
       return !!userCredential.user;
     } catch (error) {
@@ -422,3 +430,5 @@ export function useAuth() {
   }
   return context;
 }
+
+    
