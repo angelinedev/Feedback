@@ -35,7 +35,7 @@ export default function FacultyDashboard() {
 
   const allFeedbackQuery = useMemo(() => {
     if (!firestore || !user || user.role !== 'faculty') return null;
-    return collection(firestore, 'feedback');
+    return query(collection(firestore, 'feedback'), where('faculty_id', '==', (user.details as Faculty).faculty_id));
   }, [firestore, user]);
 
   const allStudentsQuery = useMemo(() => {

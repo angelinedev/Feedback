@@ -1,0 +1,40 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+  
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    match /students/{studentId} {
+      allow read, update, delete: if request.auth.uid == studentId;
+      allow create: if isSignedIn(); // Admin functionality handled by backend logic
+      allow list: if isSignedIn(); // Let admins list, logic in app
+    }
+    
+    match /faculty/{facultyId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn(); // Admin functionality handled by backend logic
+      allow list: if isSignedIn();
+    }
+    
+    match /questions/{questionId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn(); // Admin functionality
+    }
+    
+    match /classFacultyMapping/{mappingId} {
+       allow read: if isSignedIn();
+       allow write: if isSignedIn(); // Admin functionality
+    }
+
+    match /feedback/{feedbackId} {
+      allow create: if request.resource.data.student_id == request.auth.uid;
+      allow read: if isSignedIn();
+    }
+  }
+}
+
+    
