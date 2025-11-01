@@ -7,7 +7,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
-import { useData } from "../data-provider";
+import { useAuth } from "@/hooks/use-auth";
 import { useMemo } from "react";
 
 interface ClassFacultyRatingsChartProps {
@@ -15,7 +15,7 @@ interface ClassFacultyRatingsChartProps {
 }
 
 export function ClassFacultyRatingsChart({ className }: ClassFacultyRatingsChartProps) {
-  const { faculty, feedback } = useData();
+  const { faculty, feedback } = useAuth();
 
   const chartData = useMemo(() => {
     if (!className || feedback.length === 0 || faculty.length === 0) return [];

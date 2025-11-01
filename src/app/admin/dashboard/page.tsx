@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useMemo } from 'react';
-import { useData } from "@/components/data-provider";
+import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
@@ -15,7 +15,7 @@ import { ClassFacultyRatingsChart } from '@/components/charts/class-faculty-rati
 
 
 export default function AdminDashboard() {
-  const { feedback, faculty, mappings, students } = useData();
+  const { feedback, faculty, mappings, students } = useAuth();
   const [selectedFacultyId, setSelectedFacultyId] = useState<string | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [selectedClassName, setSelectedClassName] = useState<string | null>(null);
@@ -330,3 +330,5 @@ export default function AdminDashboard() {
     </>
   )
 }
+
+    

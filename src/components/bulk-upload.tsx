@@ -7,12 +7,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Upload, Users, Briefcase, BrainCircuit, Loader2 } from 'lucide-react';
-import { useData } from './data-provider';
+import { useAuth } from '@/hooks/use-auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import type { Student, Faculty, ClassFacultyMapping } from '@/lib/types';
 
 export function BulkUpload() {
-  const { addBulkStudents, addBulkFaculty, addBulkMappings, students: allStudents, faculty: allFaculty } = useData();
+  const { addBulkStudents, addBulkFaculty, addBulkMappings, students: allStudents, faculty: allFaculty } = useAuth();
   const { toast } = useToast();
   
   const [studentCsv, setStudentCsv] = useState('');
@@ -203,3 +203,5 @@ export function BulkUpload() {
     </Tabs>
   );
 }
+
+    

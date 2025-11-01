@@ -9,12 +9,10 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { FeedbackForm } from '@/components/feedback-form';
 import type { ClassFacultyMapping, Student, Feedback, Rating, Faculty } from '@/lib/types';
 import { CheckCircle, Edit, KeyRound } from 'lucide-react';
-import { useData } from '@/components/data-provider';
 import { ChangePasswordDialog } from '@/components/change-password-dialog';
 
 export default function StudentDashboard() {
-  const { user } = useAuth();
-  const { mappings, questions, addFeedback, feedback, faculty } = useData();
+  const { user, mappings, questions, addFeedback, feedback, faculty } = useAuth();
   const [selectedMapping, setSelectedMapping] = useState<(ClassFacultyMapping & { facultyName: string }) | null>(null);
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   

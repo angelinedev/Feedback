@@ -3,7 +3,7 @@
 
 import { Bar, BarChart, CartesianGrid, XAxis, ResponsiveContainer, YAxis } from "recharts"
 import type { Feedback } from "@/lib/types";
-import { useData } from "../data-provider";
+import { useAuth } from "@/hooks/use-auth";
 
 import {
   ChartContainer,
@@ -17,7 +17,7 @@ interface FeedbackCriteriaChartProps {
 }
 
 export function FeedbackCriteriaChart({ feedback }: FeedbackCriteriaChartProps) {
-  const { questions } = useData();
+  const { questions } = useAuth();
 
   const chartData = useMemo(() => {
     if (feedback.length === 0) {

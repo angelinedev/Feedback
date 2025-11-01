@@ -23,7 +23,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
 import { Input } from "../ui/input"
-import { useData } from "../data-provider"
+import { useAuth } from "@/hooks/use-auth"
 
 interface FacultyTableProps {
 }
@@ -37,7 +37,7 @@ const facultySchema = z.object({
 });
 
 const FacultyForm = ({ faculty, onSave, onCancel }: { faculty?: Faculty; onSave: (data: Omit<Faculty, 'id'>) => void; onCancel: () => void; }) => {
-    const { faculty: allFaculty } = useData();
+    const { faculty: allFaculty } = useAuth();
     const existingFacultyIds = React.useMemo(() => new Set(allFaculty.map(f => f.faculty_id)), [allFaculty]);
 
     const formSchema = facultySchema.extend({
@@ -123,7 +123,7 @@ const FacultyForm = ({ faculty, onSave, onCancel }: { faculty?: Faculty; onSave:
 };
 
 const ActionsCell = ({ faculty }: { faculty: Faculty; }) => {
-    const { updateFaculty, deleteFaculty, updateFacultyPassword } = useData();
+    const { updateFaculty, deleteFaculty, updateFacultyPassword } = useAuth();
     const [isEditing, setIsEditing] = React.useState(false);
     const { toast } = useToast();
     
@@ -193,7 +193,7 @@ const getColumns = (): ColumnDef<Faculty>[] => [
 ];
 
 export function FacultyTable({}: FacultyTableProps) {
-    const { faculty, addFaculty } = useData();
+    const { faculty, addFaculty } = useAuth();
     const [isAdding, setIsAdding] = React.useState(false);
     const { toast } = useToast();
     
@@ -239,3 +239,5 @@ export function FacultyTable({}: FacultyTableProps) {
     </Card>
   )
 }
+
+    

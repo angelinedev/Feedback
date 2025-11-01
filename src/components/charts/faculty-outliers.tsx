@@ -8,7 +8,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
-import { useData } from "../data-provider";
+import { useAuth } from "@/hooks/use-auth";
 import { useMemo } from "react";
 
 
@@ -17,7 +17,7 @@ interface FacultyOutliersChartProps {
 }
 
 export function FacultyOutliersChart({ type }: FacultyOutliersChartProps) {
-  const { faculty, feedback } = useData();
+  const { faculty, feedback } = useAuth();
 
   const facultyRatings = useMemo(() => {
     if (feedback.length === 0) return [];

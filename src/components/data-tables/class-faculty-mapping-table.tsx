@@ -24,7 +24,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "../ui/input"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
-import { useData } from "../data-provider"
+import { useAuth } from "@/hooks/use-auth"
 
 interface ClassFacultyMappingTableProps {
 }
@@ -37,7 +37,7 @@ const mappingSchema = z.object({
 });
 
 const MappingForm = ({ mapping, onSave, onCancel }: { mapping?: ClassFacultyMapping; onSave: (data: Omit<ClassFacultyMapping, 'id'>) => void; onCancel: () => void; }) => {
-    const { mappings, faculty } = useData();
+    const { mappings, faculty } = useAuth();
 
     const existingMappings = React.useMemo(() => new Set(mappings.map(m => `${m.class_name}-${m.faculty_id}-${m.subject}`)), [mappings]);
     
@@ -122,7 +122,7 @@ const MappingForm = ({ mapping, onSave, onCancel }: { mapping?: ClassFacultyMapp
 
 
 const ActionsCell = ({ mapping }: { mapping: ClassFacultyMapping; }) => {
-    const { updateMapping, deleteMapping } = useData();
+    const { updateMapping, deleteMapping } = useAuth();
     const [isEditing, setIsEditing] = React.useState(false);
     const { toast } = useToast();
 
@@ -192,7 +192,7 @@ const getColumns = (allFaculty: Faculty[]): ColumnDef<ClassFacultyMapping>[] => 
 ]
 
 export function ClassFacultyMappingTable({}: ClassFacultyMappingTableProps) {
-    const { mappings, faculty, addMapping } = useData();
+    const { mappings, faculty, addMapping } = useAuth();
     const [isAdding, setIsAdding] = React.useState<boolean>(false);
     const { toast } = useToast();
     
@@ -238,3 +238,5 @@ export function ClassFacultyMappingTable({}: ClassFacultyMappingTableProps) {
     </Card>
   )
 }
+
+    

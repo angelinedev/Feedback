@@ -23,7 +23,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog"
 import { Input } from "../ui/input"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
-import { useData } from "../data-provider"
+import { useAuth } from "@/hooks/use-auth"
 
 interface StudentTableProps {
 }
@@ -38,7 +38,7 @@ const studentSchema = z.object({
 
 
 const StudentForm = ({ student, onSave, onCancel }: { student?: Student; onSave: (data: Omit<Student, 'id'>) => void; onCancel: () => void; }) => {
-    const { students } = useData();
+    const { students } = useAuth();
     const existingRegNumbers = React.useMemo(() => new Set(students.map(s => s.register_number)), [students]);
 
     const formSchema = studentSchema.extend({
@@ -125,7 +125,7 @@ const StudentForm = ({ student, onSave, onCancel }: { student?: Student; onSave:
 
 
 const ActionsCell = ({ student }: { student: Student; }) => {
-    const { updateStudent, deleteStudent, updateStudentPassword } = useData();
+    const { updateStudent, deleteStudent, updateStudentPassword } = useAuth();
     const [isEditing, setIsEditing] = React.useState(false);
     const { toast } = useToast();
 
@@ -195,7 +195,7 @@ const getColumns = (): ColumnDef<Student>[] => [
 ]
 
 export function StudentTable({}: StudentTableProps) {
-    const { students, addStudent } = useData();
+    const { students, addStudent } = useAuth();
     const [isAdding, setIsAdding] = React.useState(false);
     const { toast } = useToast();
     
@@ -241,3 +241,5 @@ export function StudentTable({}: StudentTableProps) {
     </Card>
   )
 }
+
+    

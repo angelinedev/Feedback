@@ -14,15 +14,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { FeedbackCriteriaChart } from '@/components/charts/feedback-criteria-chart';
 import { ResponseRateChart } from '@/components/charts/response-rate-chart';
 import type { Faculty } from '@/lib/types';
-import { useData } from '@/components/data-provider';
 import { Button } from '@/components/ui/button';
 import { KeyRound, TrendingUp } from 'lucide-react';
 import { ChangePasswordDialog } from '@/components/change-password-dialog';
 
 
 export default function FacultyDashboard() {
-  const { user } = useAuth();
-  const { students, mappings, feedback } = useData();
+  const { user, students, mappings, feedback } = useAuth();
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
 
@@ -211,3 +209,5 @@ export default function FacultyDashboard() {
     </div>
   );
 }
+
+    
