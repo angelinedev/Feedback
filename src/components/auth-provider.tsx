@@ -44,18 +44,50 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Helper to get data from localStorage
+const getFromStorage = <T>(key: string, fallback: T): T => {
+    if (typeof window === 'undefined') return fallback;
+    const stored = localStorage.getItem(key);
+    if (stored) {
+        try {
+            return JSON.parse(stored);
+        } catch (e) {
+            console.error(`Failed to parse ${key} from localStorage`, e);
+            return fallback;
+        }
+    }
+    return fallback;
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  // Use React state to manage mock data so UI updates on change
-  const [students, setStudents] = useState<Student[]>([...mockStudents]);
-  const [faculty, setFaculty] = useState<Faculty[]>([...mockFaculty]);
-  const [feedbacks, setFeedbacks] = useState<Feedback[]>([...initialFeedback]);
-  const [mappings, setMappings] = useState<ClassFacultyMapping[]>([...initialMappings]);
+  // Initialize state from localStorage or mock data
+  const [students, setStudents] = useState<Student[]>(() => getFromStorage('app_students', mockStudents));
+  const [faculty, setFaculty] = useState<Faculty[]>(() => getFromStorage('app_faculty', mockFaculty));
+  const [feedbacks, setFeedbacks] = useState<Feedback[]>(() => getFromStorage('app_feedbacks', initialFeedback));
+  const [mappings, setMappings] = useState<ClassFacultyMapping[]>(() => getFromStorage('app_mappings', initialMappings));
   
   const router = useRouter();
   const pathname = usePathname();
+
+  // Effect to persist state to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('app_students', JSON.stringify(students));
+  }, [students]);
+
+  useEffect(() => {
+    localStorage.setItem('app_faculty', JSON.stringify(faculty));
+  }, [faculty]);
+
+  useEffect(() => {
+    localStorage.setItem('app_feedbacks', JSON.stringify(feedbacks));
+  }, [feedbacks]);
+
+  useEffect(() => {
+    localStorage.setItem('app_mappings', JSON.stringify(mappings));
+  }, [mappings]);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('feedloop-user');
