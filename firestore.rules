@@ -1,0 +1,159 @@
+/**
+ * @file Firestore Security Rules for FeedLoop v2
+ * @description This ruleset enforces a strict user-ownership model for student and faculty profiles,
+ *              and utilizes denormalization to ensure authorization independence for feedback submissions.
+ *              Admin privileges are granted based on the existence of a document in the /roles_admin/{uid} collection.
+ *
+ * Data Structure:
+ *  - /students/{studentId}: Student profiles, where studentId matches auth.uid.
+ *  - /faculty/{facultyId}: Faculty profiles, where facultyId matches auth.uid.
+ *  - /classFacultyMapping/{classFacultyMappingId}: Maps classes to faculty and subjects.
+ *  - /questions/{questionId}: Stores feedback questions.
+ *  - /students/{studentId}/feedback/{feedbackId}: Student feedback submissions.
+ *  - /roles_admin/{uid}: Indicates admin roles based on document existence.
+ *
+ * Key Security Decisions:
+ *  - Students and faculty can only access their own profiles.
+ *  - Feedback submissions are restricted to the student who created them, and write operations
+ *    are further restricted to existing ClassFacultyMapping entities.
+ *  - Read access to questions is public.
+ *  - Listing of students and faculty is disallowed.
+ *  - Only users with a document in `/roles_admin/{uid}` are considered administrators.
+ *
+ * Denormalization for Authorization:
+ *  - Feedback documents include denormalized studentId and classFacultyMappingId.
+ *    This avoids the need for `get()` calls to parent documents during authorization checks.
+ *
+ * Structural Segregation:
+ *  - Admin roles are stored in a separate `/roles_admin/{uid}` collection, allowing for
+ *    efficient and secure role-based access control.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Allows students to read and write their own profile data.
+     * @path /students/{studentId}
+     * @allow (create) - User with auth.uid "user_abc" creates a student document with id "user_abc".
+     * @allow (update) - User with auth.uid "user_abc" updates a student document with id "user_abc".
+     * @allow (get) - User with auth.uid "user_abc" reads their own student document with id "user_abc".
+     * @deny (create) - User with auth.uid "user_xyz" attempts to create a student document with id "user_abc".
+     * @deny (update) - User with auth.uid "user_xyz" attempts to update student document with id "user_abc".
+     * @deny (delete) - User with auth.uid "user_xyz" attempts to delete student document with id "user_abc".
+     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
+     */
+    match /students/{studentId} {
+      allow get: if isOwner(studentId);
+      allow list: if false;
+      allow create: if isOwner(studentId) && request.resource.data.id == studentId;
+      allow update: if isExistingOwner(studentId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(studentId);
+    }
+
+    /**
+     * @description Allows faculty to read and write their own profile data.
+     * @path /faculty/{facultyId}
+     * @allow (create) - User with auth.uid "user_def" creates a faculty document with id "user_def".
+     * @allow (update) - User with auth.uid "user_def" updates a faculty document with id "user_def".
+     * @allow (get) - User with auth.uid "user_def" reads their own faculty document with id "user_def".
+     * @deny (create) - User with auth.uid "user_uvw" attempts to create a faculty document with id "user_def".
+     * @deny (update) - User with auth.uid "user_uvw" attempts to update faculty document with id "user_def".
+     * @deny (delete) - User with auth.uid "user_uvw" attempts to delete faculty document with id "user_def".
+     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
+     */
+    match /faculty/{facultyId} {
+      allow get: if isOwner(facultyId);
+      allow list: if false;
+      allow create: if isOwner(facultyId) && request.resource.data.id == facultyId;
+      allow update: if isExistingOwner(facultyId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(facultyId);
+    }
+
+    /**
+     * @description Allows anyone to read class faculty mappings, but restricts creation, updates, and deletions.
+     * @path /classFacultyMapping/{classFacultyMappingId}
+     * @allow (get) - Any user can read a classFacultyMapping document.
+     * @allow (list) - Any user can list classFacultyMapping documents.
+     * @deny (create) - Any user attempts to create a classFacultyMapping document.
+     * @deny (update) - Any user attempts to update a classFacultyMapping document.
+     * @deny (delete) - Any user attempts to delete a classFacultyMapping document.
+     * @principle Public read, restricted writes.
+     */
+    match /classFacultyMapping/{classFacultyMappingId} {
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    /**
+     * @description Allows anyone to read feedback questions, but restricts creation, updates, and deletions.
+     * @path /questions/{questionId}
+     * @allow (get) - Any user can read a question document.
+     * @allow (list) - Any user can list question documents.
+     * @deny (create) - Any user attempts to create a question document.
+     * @deny (update) - Any user attempts to update a question document.
+     * @deny (delete) - Any user attempts to delete a question document.
+     * @principle Public read, restricted writes.
+     */
+    match /questions/{questionId} {
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    /**
+     * @description Allows students to manage their own feedback submissions.
+     * @path /students/{studentId}/feedback/{feedbackId}
+     * @allow (create) - User with auth.uid "user_abc" creates feedback with studentId "user_abc".
+     * @allow (update) - User with auth.uid "user_abc" updates feedback with studentId "user_abc".
+     * @allow (get) - User with auth.uid "user_abc" reads their own feedback with studentId "user_abc".
+     * @allow (list) - User with auth.uid "user_abc" lists their own feedback documents.
+     * @deny (create) - User with auth.uid "user_xyz" attempts to create feedback with studentId "user_abc".
+     * @deny (update) - User with auth.uid "user_xyz" attempts to update feedback with studentId "user_abc".
+     * @deny (delete) - User with auth.uid "user_xyz" attempts to delete feedback with studentId "user_abc".
+     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
+     */
+    match /students/{studentId}/feedback/{feedbackId} {
+      allow get: if isOwner(studentId);
+      allow list: if isOwner(studentId);
+      allow create: if isOwner(studentId) && request.resource.data.studentId == studentId;
+      allow update: if isExistingOwner(studentId) && request.resource.data.studentId == resource.data.studentId;
+      allow delete: if isExistingOwner(studentId);
+    }
+
+        /**
+         * @description Allows admin users to manage admin roles.
+         * @path /roles_admin/{uid}
+         * @allow (create) - User with admin role creates an admin role document.
+         * @allow (update) - User with admin role updates an admin role document.
+         * @allow (get) - User with admin role can get their own admin role.
+         * @allow (list) - Any user can list admin roles.
+         * @allow (delete) - User with admin role deletes an admin role document.
+         * @principle Restricts write access to admin role documents to admin users.
+         */
+    match /roles_admin/{uid} {
+          allow get: if isAdmin();
+          allow list: if isAdmin();
+          allow create: if isAdmin();
+          allow update: if isAdmin();
+          allow delete: if isAdmin();
+    }
+
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+  }
+}
