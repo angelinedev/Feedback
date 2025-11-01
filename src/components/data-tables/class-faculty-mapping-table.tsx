@@ -44,9 +44,16 @@ const MappingForm = ({ mapping, onSave, onCancel, mappings, faculty }: { mapping
     const existingMappings = React.useMemo(() => new Set(mappings.map(m => `${m.class_name}-${m.faculty_id}-${m.subject}`)), [mappings]);
     
     const formSchema = mappingSchema.refine(data => {
-        const mappingKey = `${data.class_name}-${data.faculty_id}-${data.subject}`;
-        if (mapping?.id && `${mapping.class_name}-${mapping.faculty_id}-${mapping.subject}` === mappingKey) return true;
-        return !existingMappings.has(mappingKey);
+        if (!mapping) { // New mapping
+            const mappingKey = `${data.class_name}-${data.faculty_id}-${data.subject}`;
+            return !existingMappings.has(mappingKey);
+        }
+        // If editing, check only if the combination has changed
+        if (data.class_name !== mapping.class_name || data.faculty_id !== mapping.faculty_id || data.subject !== mapping.subject) {
+            const mappingKey = `${data.class_name}-${data.faculty_id}-${data.subject}`;
+            return !existingMappings.has(mappingKey);
+        }
+        return true; // No change, so it's valid
     }, {
         message: "This exact mapping already exists.",
         path: ["subject"], // Show error on a field
