@@ -33,7 +33,7 @@ export function ClassFacultyRatingsChart({ className, feedback, faculty }: Class
         ratingsByFaculty[fb.faculty_id] = { total: 0, count: 0, name: facultyMember.name };
       }
 
-      fb.ratings.forEach(rating => {
+      (fb.ratings || []).forEach(rating => {
         ratingsByFaculty[fb.faculty_id].total += rating.rating;
         ratingsByFaculty[fb.faculty_id].count += 1;
       });
@@ -72,3 +72,5 @@ export function ClassFacultyRatingsChart({ className, feedback, faculty }: Class
     </ChartContainer>
   )
 }
+
+    

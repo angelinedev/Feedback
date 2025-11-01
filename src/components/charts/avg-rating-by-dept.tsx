@@ -31,7 +31,7 @@ export function AvgRatingByDeptChart({ feedback, faculty }: AvgRatingByDeptChart
         ratingsByDept[dept] = { total: 0, count: 0 };
       }
 
-      fb.ratings.forEach(rating => {
+      (fb.ratings || []).forEach(rating => {
         ratingsByDept[dept].total += rating.rating;
         ratingsByDept[dept].count += 1;
       });
@@ -70,3 +70,5 @@ export function AvgRatingByDeptChart({ feedback, faculty }: AvgRatingByDeptChart
     </ChartContainer>
   )
 }
+
+    

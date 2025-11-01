@@ -29,7 +29,7 @@ export function FeedbackCriteriaChart({ feedback }: FeedbackCriteriaChartProps) 
     const ratingSums: { [key: string]: { total: number; count: number } } = {};
 
     feedback.forEach(fb => {
-        fb.ratings.forEach(r => {
+        (fb.ratings || []).forEach(r => {
             if (!ratingSums[r.question_id]) {
                 ratingSums[r.question_id] = { total: 0, count: 0 };
             }
@@ -74,3 +74,5 @@ export function FeedbackCriteriaChart({ feedback }: FeedbackCriteriaChartProps) 
     </ChartContainer>
   )
 }
+
+    

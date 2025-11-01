@@ -20,11 +20,32 @@ import type { Student, Faculty, ClassFacultyMapping, Feedback } from '@/lib/type
 
 export default function AdminDashboard() {
   const { firestore } = useFirebase();
+  const { user } = useAuth();
 
-  const { data: feedback } = useCollection<Feedback>(collection(firestore, 'feedback'));
-  const { data: faculty } = useCollection<Faculty>(collection(firestore, 'faculty'));
-  const { data: mappings } = useCollection<ClassFacultyMapping>(collection(firestore, 'classFacultyMapping'));
-  const { data: students } = useCollection<Student>(collection(firestore, 'students'));
+  const feedbackQuery = useMemo(() => {
+    if (!firestore || !user || user.role !== 'admin') return null;
+    return collection(firestore, 'feedback');
+  }, [firestore, user]);
+
+  const facultyQuery = useMemo(() => {
+    if (!firestore || !user || user.role !== 'admin') return null;
+    return collection(firestore, 'faculty');
+  }, [firestore, user]);
+
+  const mappingsQuery = useMemo(() => {
+    if (!firestore || !user || user.role !== 'admin') return null;
+    return collection(firestore, 'classFacultyMapping');
+  }, [firestore, user]);
+
+  const studentsQuery = useMemo(() => {
+    if (!firestore || !user || user.role !== 'admin') return null;
+    return collection(firestore, 'students');
+  }, [firestore, user]);
+
+  const { data: feedback } = useCollection<Feedback>(feedbackQuery);
+  const { data: faculty } = useCollection<Faculty>(facultyQuery);
+  const { data: mappings } = useCollection<ClassFacultyMapping>(mappingsQuery);
+  const { data: students } = useCollection<Student>(studentsQuery);
   
   const [selectedFacultyId, setSelectedFacultyId] = useState<string | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
@@ -38,7 +59,7 @@ export default function AdminDashboard() {
     let totalRating = 0;
     let ratingCount = 0;
     feedback.forEach(fb => {
-      fb.ratings.forEach(r => {
+      (fb.ratings || []).forEach(r => {
         totalRating += r.rating;
         ratingCount++;
       });
@@ -105,7 +126,7 @@ export default function AdminDashboard() {
         ratingsByFaculty[fb.faculty_id] = { total: 0, count: 0, name: facultyMember.name };
       }
 
-      fb.ratings.forEach(rating => {
+      (fb.ratings || []).forEach(rating => {
         ratingsByFaculty[fb.faculty_id].total += rating.rating;
         ratingsByFaculty[fb.faculty_id].count += 1;
       });
@@ -344,3 +365,5 @@ export default function AdminDashboard() {
     </>
   )
 }
+
+    

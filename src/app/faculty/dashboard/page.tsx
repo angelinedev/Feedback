@@ -33,9 +33,19 @@ export default function FacultyDashboard() {
     return query(collection(firestore, 'classFacultyMapping'), where('faculty_id', '==', faculty.faculty_id));
   }, [firestore, faculty?.faculty_id]);
 
+  const allFeedbackQuery = useMemo(() => {
+    if (!firestore || !user || user.role !== 'faculty') return null;
+    return collection(firestore, 'feedback');
+  }, [firestore, user]);
+
+  const allStudentsQuery = useMemo(() => {
+    if (!firestore || !user || user.role !== 'faculty') return null;
+    return collection(firestore, 'students');
+  }, [firestore, user]);
+
   const { data: mappings } = useCollection<ClassFacultyMapping>(mappingsQuery);
-  const { data: allFeedback } = useCollection<Feedback>(collection(firestore, 'feedback'));
-  const { data: allStudents } = useCollection<Student>(collection(firestore, 'students'));
+  const { data: allFeedback } = useCollection<Feedback>(allFeedbackQuery);
+  const { data: allStudents } = useCollection<Student>(allStudentsQuery);
   
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
@@ -63,7 +73,7 @@ export default function FacultyDashboard() {
     let ratingCount = 0;
 
     facultyFeedback.forEach(fb => {
-      fb.ratings.forEach(r => {
+      (fb.ratings || []).forEach(r => {
         totalRating += r.rating;
         ratingCount++;
       });
@@ -89,7 +99,7 @@ export default function FacultyDashboard() {
       let totalRating = 0;
       let ratingCount = 0;
       feedbackForSubject.forEach(fb => {
-        fb.ratings.forEach(r => {
+        (fb.ratings || []).forEach(r => {
           totalRating += r.rating;
           ratingCount++;
         });
@@ -223,3 +233,5 @@ export default function FacultyDashboard() {
     </div>
   );
 }
+
+    
