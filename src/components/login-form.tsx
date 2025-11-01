@@ -60,8 +60,13 @@ export default function LoginForm() {
     let idLabel = "ID";
     let idPlaceholder = "Enter your ID";
     let idType = "text";
-
-    if (role === "student") {
+    let idValue = "";
+    
+    if (role === "admin") {
+      idLabel = "Admin ID"
+      idPlaceholder = "admin"
+      idValue="admin"
+    } else if (role === "student") {
       idLabel = "Register Number";
       idPlaceholder = "16-digit register number";
     } else if (role === "faculty") {
@@ -73,11 +78,11 @@ export default function LoginForm() {
       <form onSubmit={handleSubmit} className="grid gap-4">
         <div className="grid gap-2">
           <Label htmlFor={`${role}-id`}>{idLabel}</Label>
-          <Input id={`${role}-id`} name="id" type={idType} placeholder={idPlaceholder} required />
+          <Input id={`${role}-id`} name="id" type={idType} placeholder={idPlaceholder} required defaultValue={idValue} />
         </div>
         <div className="grid gap-2">
           <Label htmlFor={`${role}-password`}>Password</Label>
-          <Input id={`${role}-password`} name="password" type="password" required />
+          <Input id={`${role}-password`} name="password" type="password" required defaultValue={role === 'admin' ? 'admin' : ''} />
         </div>
         <Button type="submit" className="w-full transition-all duration-300 ease-in-out shadow-lg hover:shadow-primary/40" disabled={loading}>
           {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Login'}

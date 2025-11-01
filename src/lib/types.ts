@@ -46,5 +46,3 @@ export interface Feedback {
   semester: string;
   submitted_at: Date;
 }
-
-    

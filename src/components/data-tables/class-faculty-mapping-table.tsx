@@ -25,6 +25,7 @@ import { Input } from "../ui/input"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { useAuth } from "@/hooks/use-auth"
+import { BulkUpload } from "../bulk-upload"
 
 interface ClassFacultyMappingTableProps {
 }

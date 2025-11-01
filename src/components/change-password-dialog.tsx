@@ -37,7 +37,7 @@ const passwordSchema = z.object({
 });
 
 export function ChangePasswordDialog({ children, open, onOpenChange }: ChangePasswordDialogProps) {
-  const { user, changePassword } = useAuth();
+  const { changePassword } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
 
@@ -51,7 +51,6 @@ export function ChangePasswordDialog({ children, open, onOpenChange }: ChangePas
   });
 
   const onSubmit = async (values: z.infer<typeof passwordSchema>) => {
-    if (!user) return;
     setLoading(true);
 
     try {
@@ -66,7 +65,7 @@ export function ChangePasswordDialog({ children, open, onOpenChange }: ChangePas
         toast({
             variant: "destructive",
             title: "Error",
-            description: error.message || "An error occurred.",
+            description: error.code === 'auth/wrong-password' ? 'Incorrect current password.' : error.message || "An error occurred.",
         });
     } finally {
         setLoading(false);

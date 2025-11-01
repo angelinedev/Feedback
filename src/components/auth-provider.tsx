@@ -1,10 +1,40 @@
+'use client';
 
-"use client";
-
-import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
+import React, {
+  createContext,
+  useContext,
+  ReactNode,
+  useEffect,
+  useState,
+} from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import type { Student, Faculty, Feedback, ClassFacultyMapping, Question } from '@/lib/types';
-import { mockStudents, mockFaculty, mockFeedback as initialFeedback, mockClassFacultyMapping as initialMappings } from '@/lib/mock-data';
+import {
+  User as FirebaseUser,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  updatePassword,
+  onAuthStateChanged,
+} from 'firebase/auth';
+import {
+  doc,
+  setDoc,
+  getDoc,
+  collection,
+  onSnapshot,
+  writeBatch,
+  query,
+  where,
+  deleteDoc,
+} from 'firebase/firestore';
+import { useFirebase } from '@/firebase/provider';
+import type {
+  Student,
+  Faculty,
+  Feedback,
+  ClassFacultyMapping,
+  Question,
+} from '@/lib/types';
+import { mockQuestions } from '@/lib/mock-data';
 
 export type UserRole = 'admin' | 'student' | 'faculty';
 
@@ -20,90 +50,134 @@ interface AuthContextType {
   authLoading: boolean;
   login: (role: UserRole, id: string, pass: string) => Promise<boolean>;
   logout: () => void;
-  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
-  addStudent: (student: Omit<Student, 'id' | 'password'>, password: string) => Promise<void>;
+  changePassword: (
+    currentPassword: string,
+    newPassword: string
+  ) => Promise<void>;
+  addStudent: (
+    student: Omit<Student, 'id' | 'password'>,
+    password: string
+  ) => Promise<void>;
   updateStudent: (id: string, data: Partial<Omit<Student, 'id'>>) => Promise<void>;
   deleteStudent: (id: string) => Promise<void>;
-  addFaculty: (faculty: Omit<Faculty, 'id' | 'password'>, password: string) => Promise<void>;
+  addFaculty: (
+    faculty: Omit<Faculty, 'id' | 'password'>,
+    password: string
+  ) => Promise<void>;
   updateFaculty: (id: string, data: Partial<Omit<Faculty, 'id'>>) => Promise<void>;
   deleteFaculty: (id: string) => Promise<void>;
   addMapping: (mapping: Omit<ClassFacultyMapping, 'id'>) => Promise<void>;
-  updateMapping: (id: string, data: Partial<Omit<ClassFacultyMapping, 'id'>>) => Promise<void>;
+  updateMapping: (
+    id: string,
+    data: Partial<Omit<ClassFacultyMapping, 'id'>>
+  ) => Promise<void>;
   deleteMapping: (id: string) => Promise<void>;
   addFeedback: (feedback: Omit<Feedback, 'id'>) => Promise<void>;
-  updateStudentPassword: (id: string, newPass: string) => Promise<void>;
-  updateFacultyPassword: (id: string, newPass: string) => Promise<void>;
   addBulkStudents: (students: Omit<Student, 'id'>[]) => Promise<void>;
   addBulkFaculty: (faculty: Omit<Faculty, 'id'>[]) => Promise<void>;
-  addBulkMappings: (mappings: Omit<ClassFacultyMapping, 'id'>[]) => Promise<void>;
+  addBulkMappings: (
+    mappings: Omit<ClassFacultyMapping, 'id'>[]
+  ) => Promise<void>;
   students: Student[];
   faculty: Faculty[];
   mappings: ClassFacultyMapping[];
   feedback: Feedback[];
+  questions: Question[];
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Helper to get data from localStorage
-const getFromStorage = <T>(key: string, fallback: T): T => {
-    if (typeof window === 'undefined') return fallback;
-    const stored = localStorage.getItem(key);
-    if (stored) {
-        try {
-            return JSON.parse(stored);
-        } catch (e) {
-            console.error(`Failed to parse ${key} from localStorage`, e);
-            return fallback;
-        }
-    }
-    return fallback;
-};
-
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const { auth, firestore } = useFirebase();
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [faculty, setFaculty] = useState<Faculty[]>([]);
+  const [mappings, setMappings] = useState<ClassFacultyMapping[]>([]);
+  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+  const [questions, setQuestions] = useState<Question[]>(mockQuestions);
 
-  // Initialize state from localStorage or mock data
-  const [students, setStudents] = useState<Student[]>(() => getFromStorage('app_students', mockStudents));
-  const [faculty, setFaculty] = useState<Faculty[]>(() => getFromStorage('app_faculty', mockFaculty));
-  const [feedbacks, setFeedbacks] = useState<Feedback[]>(() => getFromStorage('app_feedbacks', initialFeedback));
-  const [mappings, setMappings] = useState<ClassFacultyMapping[]>(() => getFromStorage('app_mappings', initialMappings));
-  
   const router = useRouter();
   const pathname = usePathname();
 
-  // Effect to persist state to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem('app_students', JSON.stringify(students));
-  }, [students]);
+    if (!firestore) return;
+    const unsubStudents = onSnapshot(collection(firestore, 'students'), (snap) =>
+      setStudents(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Student)))
+    );
+    const unsubFaculty = onSnapshot(collection(firestore, 'faculty'), (snap) =>
+      setFaculty(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Faculty)))
+    );
+    const unsubMappings = onSnapshot(
+      collection(firestore, 'classFacultyMapping'),
+      (snap) =>
+        setMappings(
+          snap.docs.map(
+            (d) => ({ id: d.id, ...d.data() } as ClassFacultyMapping)
+          )
+        )
+    );
+    const unsubFeedbacks = onSnapshot(
+      collection(firestore, 'feedback'),
+      (snap) =>
+        setFeedbacks(
+          snap.docs.map((d) => ({ id: d.id, ...d.data(), submitted_at: d.data().submitted_at.toDate() } as Feedback))
+        )
+    );
+    const unsubQuestions = onSnapshot(
+      collection(firestore, 'questions'),
+      (snap) =>
+        setQuestions(
+          snap.docs.map((d) => ({ id: d.id, ...d.data() } as Question))
+        )
+    );
+
+    return () => {
+      unsubStudents();
+      unsubFaculty();
+      unsubMappings();
+      unsubFeedbacks();
+      unsubQuestions();
+    };
+  }, [firestore]);
 
   useEffect(() => {
-    localStorage.setItem('app_faculty', JSON.stringify(faculty));
-  }, [faculty]);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const userDoc = await getDoc(doc(firestore, 'users', firebaseUser.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          const role = userData.role as UserRole;
+          let details: any;
 
-  useEffect(() => {
-    localStorage.setItem('app_feedbacks', JSON.stringify(feedbacks));
-  }, [feedbacks]);
+          if (role === 'admin') {
+            details = { id: 'admin', name: 'Admin' };
+          } else if (role === 'student') {
+            const studentDoc = await getDoc(
+              doc(firestore, 'students', firebaseUser.uid)
+            );
+            details = { id: studentDoc.id, ...studentDoc.data() };
+          } else if (role === 'faculty') {
+            const facultyDoc = await getDoc(
+              doc(firestore, 'faculty', firebaseUser.uid)
+            );
+            details = { id: facultyDoc.id, ...facultyDoc.data() };
+          }
 
-  useEffect(() => {
-    localStorage.setItem('app_mappings', JSON.stringify(mappings));
-  }, [mappings]);
-
-  useEffect(() => {
-    const storedUser = localStorage.getItem('feedloop-user');
-    if (storedUser) {
-      try {
-        const parsedUser: User = JSON.parse(storedUser);
-        if (parsedUser.id && parsedUser.role && parsedUser.name) {
-          setUser(parsedUser);
+          setUser({
+            id: firebaseUser.uid,
+            name: details.name,
+            role,
+            details,
+          });
         }
-      } catch (error) {
-        console.error("Failed to parse user from localStorage", error);
-        localStorage.removeItem('feedloop-user');
+      } else {
+        setUser(null);
       }
-    }
-    setAuthLoading(false);
-  }, []);
+      setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, [auth, firestore]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -116,140 +190,156 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else if (user && pathIsPublic) {
       router.push(`/${user.role}/dashboard`);
     }
-
   }, [user, authLoading, pathname, router]);
 
-  const findUserInMemory = <T extends { password?: string }>(collection: T[], idField: keyof T, id: string, pass: string): T | null => {
-    const user = collection.find(u => u[idField] === id);
-    if (user && user.password === pass) {
-      return user;
+  const login = async (
+    role: UserRole,
+    id: string,
+    pass: string
+  ): Promise<boolean> => {
+    try {
+      const email =
+        role === 'admin'
+          ? 'admin@feedloop.com'
+          : role === 'student'
+          ? `${id}@student.jce.com`
+          : `${id}@faculty.jce.com`;
+      const userCredential = await signInWithEmailAndPassword(auth, email, pass);
+      return !!userCredential.user;
+    } catch (error) {
+      console.error('Login failed:', error);
+      return false;
     }
-    return null;
-  }
-
-  const login = async (role: UserRole, id: string, pass: string): Promise<boolean> => {
-    setAuthLoading(true);
-    let foundUser: User | null = null;
-
-    if (role === 'admin') {
-      if (id === 'admin' && pass === 'admin') {
-        foundUser = { id: 'admin', name: 'Admin', role: 'admin', details: { id: 'admin', name: 'Admin' } };
-      }
-    } else if (role === 'student') {
-      const student = findUserInMemory(students, 'register_number', id, pass);
-      if (student) {
-        foundUser = { id: student.id, name: student.name, role: 'student', details: student };
-      }
-    } else if (role === 'faculty') {
-      const facultyMember = findUserInMemory(faculty, 'faculty_id', id, pass);
-      if (facultyMember) {
-        foundUser = { id: facultyMember.id, name: facultyMember.name, role: 'faculty', details: facultyMember };
-      }
-    }
-
-    if (foundUser) {
-      setUser(foundUser);
-      localStorage.setItem('feedloop-user', JSON.stringify(foundUser));
-      router.push(`/${foundUser.role}/dashboard`);
-      setAuthLoading(false);
-      return true;
-    }
-
-    setAuthLoading(false);
-    return false;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await auth.signOut();
     setUser(null);
-    localStorage.removeItem('feedloop-user');
     router.push('/');
   };
 
-  const changePassword = async (currentPassword: string, newPassword: string) => {
-    if (!user) throw new Error("Not authenticated.");
-    
-    let success = false;
-    if (user.role === 'student') {
-        setStudents(prev => prev.map(s => {
-          if (s.id === user.id && s.password === currentPassword) {
-            success = true;
-            return { ...s, password: newPassword };
-          }
-          return s;
-        }));
-    } else if (user.role === 'faculty') {
-        setFaculty(prev => prev.map(f => {
-          if (f.id === user.id && f.password === currentPassword) {
-            success = true;
-            return { ...f, password: newPassword };
-          }
-          return f;
-        }));
-    }
-    
-    if (!success) {
-      throw new Error("Incorrect current password.");
-    }
-  };
+  const changePassword = async (
+    currentPassword: string,
+    newPassword: string
+  ) => {
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser || !firebaseUser.email) throw new Error('Not authenticated');
 
-  // Data management functions now use setState to trigger re-renders
-  const addStudent = async (studentData: Omit<Student, 'id' | 'password'>, password: string) => {
-    const newStudent: Student = { ...studentData, id: `student-${Date.now()}`, password };
-    setStudents(prev => [...prev, newStudent]);
-  };
-  const updateStudent = async (id: string, data: Partial<Omit<Student, 'id'>>) => {
-    setStudents(prev => prev.map(s => s.id === id ? { ...s, ...data } : s));
-  };
-  const deleteStudent = async (id: string) => {
-    setStudents(prev => prev.filter(s => s.id !== id));
-  };
-  const updateStudentPassword = async (id: string, newPass: string) => {
-      setStudents(prev => prev.map(s => s.id === id ? { ...s, password: newPass } : s));
-  };
-
-  const addFaculty = async (facultyData: Omit<Faculty, 'id' | 'password'>, password: string) => {
-    const newFaculty: Faculty = { ...facultyData, id: `faculty-${Date.now()}`, password };
-    setFaculty(prev => [...prev, newFaculty]);
-  };
-  const updateFaculty = async (id: string, data: Partial<Omit<Faculty, 'id'>>) => {
-    setFaculty(prev => prev.map(f => f.id === id ? { ...f, ...data } : f));
-  };
-  const deleteFaculty = async (id: string) => {
-    setFaculty(prev => prev.filter(f => f.id !== id));
-  };
-  const updateFacultyPassword = async (id: string, newPass: string) => {
-      setFaculty(prev => prev.map(f => f.id === id ? { ...f, password: newPass } : f));
-  };
-
-  const addMapping = async (mappingData: Omit<ClassFacultyMapping, 'id'>) => {
-    const newMapping: ClassFacultyMapping = { ...mappingData, id: `map-${Date.now()}` };
-    setMappings(prev => [...prev, newMapping]);
-  };
-  const updateMapping = async (id: string, data: Partial<Omit<ClassFacultyMapping, 'id'>>) => {
-    setMappings(prev => prev.map(m => m.id === id ? { ...m, ...data } : m));
-  };
-  const deleteMapping = async (id: string) => {
-    setMappings(prev => prev.filter(m => m.id !== id));
-  };
-
-  const addFeedback = async (feedbackData: Omit<Feedback, 'id'>) => {
-    const newFeedback: Feedback = { ...feedbackData, id: `fb-${Date.now()}`, submitted_at: new Date() };
-    setFeedbacks(prev => [...prev, newFeedback]);
-  };
-
-  const addBulkStudents = async (newStudents: Omit<Student, 'id'>[]) => {
-    const studentsToAdd = newStudents.map(s => ({ ...s, id: `student-${Date.now()}-${Math.random()}`}));
-    setStudents(prev => [...prev, ...studentsToAdd]);
-  };
-  const addBulkFaculty = async (newFaculty: Omit<Faculty, 'id'>[]) => {
-    const facultyToAdd = newFaculty.map(f => ({ ...f, id: `faculty-${Date.now()}-${Math.random()}`}));
-    setFaculty(prev => [...prev, ...facultyToAdd]);
-  };
-  const addBulkMappings = async (newMappings: Omit<ClassFacultyMapping, 'id'>[]) => {
-    const mappingsToAdd = newMappings.map(m => ({ ...m, id: `map-${Date.now()}-${Math.random()}`}));
-    setMappings(prev => [...prev, ...mappingsToAdd]);
+    await signInWithEmailAndPassword(
+      auth,
+      firebaseUser.email,
+      currentPassword
+    );
+    await updatePassword(firebaseUser, newPassword);
   };
   
+    const addStudent = async (studentData: Omit<Student, 'id' | 'password'>, password: string) => {
+        const email = `${studentData.register_number}@student.jce.com`;
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const uid = userCredential.user.uid;
+        
+        const batch = writeBatch(firestore);
+        batch.set(doc(firestore, "students", uid), { ...studentData, id: uid });
+        batch.set(doc(firestore, "users", uid), { role: "student" });
+        
+        await batch.commit();
+    };
+
+    const updateStudent = async (id: string, data: Partial<Omit<Student, 'id'>>) => {
+        await setDoc(doc(firestore, "students", id), data, { merge: true });
+    };
+
+    const deleteStudent = async (id: string) => {
+        // This is complex due to auth. For now, we just delete the doc.
+        await deleteDoc(doc(firestore, "students", id));
+        await deleteDoc(doc(firestore, "users", id));
+    };
+
+    const addFaculty = async (facultyData: Omit<Faculty, 'id' | 'password'>, password: string) => {
+        const email = `${facultyData.faculty_id}@faculty.jce.com`;
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const uid = userCredential.user.uid;
+        
+        const batch = writeBatch(firestore);
+        batch.set(doc(firestore, "faculty", uid), { ...facultyData, id: uid });
+        batch.set(doc(firestore, "users", uid), { role: "faculty" });
+
+        await batch.commit();
+    };
+
+    const updateFaculty = async (id: string, data: Partial<Omit<Faculty, 'id'>>) => {
+        await setDoc(doc(firestore, "faculty", id), data, { merge: true });
+    };
+    
+    const deleteFaculty = async (id: string) => {
+        await deleteDoc(doc(firestore, "faculty", id));
+        await deleteDoc(doc(firestore, "users", id));
+    };
+
+    const addMapping = async (mappingData: Omit<ClassFacultyMapping, 'id'>) => {
+        const newMappingRef = doc(collection(firestore, "classFacultyMapping"));
+        await setDoc(newMappingRef, { ...mappingData, id: newMappingRef.id });
+    };
+
+    const updateMapping = async (id: string, data: Partial<Omit<ClassFacultyMapping, 'id'>>) => {
+        await setDoc(doc(firestore, "classFacultyMapping", id), data, { merge: true });
+    };
+
+    const deleteMapping = async (id: string) => {
+        await deleteDoc(doc(firestore, "classFacultyMapping", id));
+    };
+
+    const addFeedback = async (feedbackData: Omit<Feedback, 'id'>) => {
+        const newFeedbackRef = doc(collection(firestore, "feedback"));
+        await setDoc(newFeedbackRef, { ...feedbackData, id: newFeedbackRef.id, submitted_at: new Date() });
+    };
+
+    const addBulkStudents = async (newStudents: Omit<Student, 'id'>[]) => {
+      const batch = writeBatch(firestore);
+      for(const s of newStudents) {
+         if(!s.password) continue;
+         const email = `${s.register_number}@student.jce.com`;
+         // This is not ideal as createUserWithEmailAndPassword cannot be batched
+         // In a real app, this should be a backend function.
+         // For now, we will create users one by one. This will be slow.
+         try {
+            const userCredential = await createUserWithEmailAndPassword(auth, email, s.password);
+            const uid = userCredential.user.uid;
+            batch.set(doc(firestore, "students", uid), { ...s, id: uid, password: ''});
+            batch.set(doc(firestore, "users", uid), { role: "student" });
+         } catch (e) {
+             console.error(`Skipping student ${s.register_number}, likely already exists.`, e)
+         }
+      }
+      await batch.commit();
+    };
+  
+    const addBulkFaculty = async (newFaculty: Omit<Faculty, 'id'>[]) => {
+      const batch = writeBatch(firestore);
+      for(const f of newFaculty) {
+        if(!f.password) continue;
+        const email = `${f.faculty_id}@faculty.jce.com`;
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, email, f.password);
+            const uid = userCredential.user.uid;
+            batch.set(doc(firestore, "faculty", uid), { ...f, id: uid, password: '' });
+            batch.set(doc(firestore, "users", uid), { role: "faculty" });
+        } catch (e) {
+             console.error(`Skipping faculty ${f.faculty_id}, likely already exists.`, e)
+        }
+      }
+      await batch.commit();
+    };
+
+    const addBulkMappings = async (newMappings: Omit<ClassFacultyMapping, 'id'>[]) => {
+        const batch = writeBatch(firestore);
+        newMappings.forEach(m => {
+            const newMappingRef = doc(collection(firestore, "classFacultyMapping"));
+            batch.set(newMappingRef, {...m, id: newMappingRef.id });
+        });
+        await batch.commit();
+    };
+
   const value: AuthContextType = {
     user,
     authLoading,
@@ -266,8 +356,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     updateMapping,
     deleteMapping,
     addFeedback,
-    updateStudentPassword,
-    updateFacultyPassword,
     addBulkStudents,
     addBulkFaculty,
     addBulkMappings,
@@ -275,12 +363,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     faculty,
     mappings,
     feedback: feedbacks,
+    questions,
   };
 
   if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-          <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4 animate-spin"></div>
+        <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4 animate-spin"></div>
       </div>
     );
   }
@@ -295,5 +384,3 @@ export function useAuthContext() {
   }
   return context;
 }
-
-    

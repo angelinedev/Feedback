@@ -10,7 +10,6 @@ import { FeedbackForm } from '@/components/feedback-form';
 import type { ClassFacultyMapping, Student, Feedback, Rating } from '@/lib/types';
 import { CheckCircle, Edit, KeyRound } from 'lucide-react';
 import { ChangePasswordDialog } from '@/components/change-password-dialog';
-import { mockQuestions } from '@/lib/mock-data';
 
 export default function StudentDashboard() {
   const { user, addFeedback, faculty: allFaculty, mappings: allMappings, feedback: allFeedback } = useAuth();
@@ -114,7 +113,6 @@ export default function StudentDashboard() {
                           </SheetDescription>
                         </SheetHeader>
                         <FeedbackForm
-                          questions={mockQuestions || []}
                           facultyId={selectedMapping.faculty_id}
                           subject={selectedMapping.subject}
                           onSubmit={handleFeedbackSubmit}

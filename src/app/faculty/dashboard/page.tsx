@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Faculty } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { KeyRound, Star, TrendingUp } from 'lucide-react';
+import { KeyRound, Star } from 'lucide-react';
 import { ChangePasswordDialog } from '@/components/change-password-dialog';
 import { SubjectReportCard } from '@/components/subject-report-card';
 

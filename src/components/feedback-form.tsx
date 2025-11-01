@@ -13,17 +13,16 @@ import { useToast } from "@/hooks/use-toast";
 import type { Question, Rating } from "@/lib/types";
 import { Loader2 } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
-import { mockQuestions } from "@/lib/mock-data";
+import { useAuth } from "@/hooks/use-auth";
 
 interface FeedbackFormProps {
-  questions: Question[];
   facultyId: string;
   subject: string;
   onSubmit: (facultyId: string, subject: string, ratings: Rating[], comment: string) => void;
 }
 
 export function FeedbackForm({ facultyId, subject, onSubmit }: FeedbackFormProps) {
-  const questions = mockQuestions;
+  const { questions } = useAuth();
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 

@@ -24,6 +24,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "../ui/input"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
 import { useAuth } from "@/hooks/use-auth"
+import { BulkUpload } from "../bulk-upload"
 
 interface StudentTableProps {
 }
@@ -125,15 +126,15 @@ const StudentForm = ({ student, onSave, onCancel, allStudents }: { student?: Stu
 
 
 const ActionsCell = ({ student, allStudents }: { student: Student; allStudents: Student[] }) => {
-    const { updateStudent, deleteStudent, updateStudentPassword } = useAuth();
+    const { updateStudent, deleteStudent } = useAuth();
     const [isEditing, setIsEditing] = React.useState(false);
     const { toast } = useToast();
 
     const handleEditSave = async (data: Omit<Student, 'id' | 'password'>, password?: string) => {
-        await updateStudent(student.id, data);
-        if(password) {
-            await updateStudentPassword(student.id, password);
+        if(password){
+             alert("Password changes for existing users should be done via a dedicated 'reset password' flow. This dialog only sets initial passwords.");
         }
+        await updateStudent(student.id, data);
         toast({ title: "Student Updated", description: `${data.name} has been updated.` });
         setIsEditing(false);
     };

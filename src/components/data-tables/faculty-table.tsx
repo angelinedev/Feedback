@@ -24,6 +24,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
 import { Input } from "../ui/input"
 import { useAuth } from "@/hooks/use-auth"
+import { BulkUpload } from "../bulk-upload"
 
 interface FacultyTableProps {
 }
@@ -123,15 +124,17 @@ const FacultyForm = ({ faculty, onSave, onCancel, allFaculty }: { faculty?: Facu
 };
 
 const ActionsCell = ({ faculty, allFaculty }: { faculty: Faculty; allFaculty: Faculty[] }) => {
-    const { updateFaculty, deleteFaculty, updateFacultyPassword } = useAuth();
+    const { updateFaculty, deleteFaculty } = useAuth();
     const [isEditing, setIsEditing] = React.useState(false);
     const { toast } = useToast();
     
     const handleEditSave = async (data: Omit<Faculty, 'id' | 'password'>, password?: string) => {
-        await updateFaculty(faculty.id, data);
-        if(password) {
-            await updateFacultyPassword(faculty.id, password);
+        // In a real app with proper auth, you might need a way to re-auth or use a different method.
+        // For this mock setup, we just update the data. We won't handle password changes here for simplicity.
+        if (password) {
+            alert("Password changes for existing users should be done via a dedicated 'reset password' flow. This dialog only sets initial passwords.");
         }
+        await updateFaculty(faculty.id, data);
         toast({ title: "Faculty Updated", description: `${data.name} has been updated.` });
         setIsEditing(false);
     };

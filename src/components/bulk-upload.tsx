@@ -14,7 +14,7 @@ interface BulkUploadProps {
 }
 
 export function BulkUpload({ type }: BulkUploadProps) {
-  const { addBulkStudents, addBulkFaculty, addBulkMappings, students: allStudents, faculty: allFaculty } = useAuth();
+  const { addBulkStudents, addBulkFaculty, addBulkMappings } = useAuth();
   const { toast } = useToast();
   
   const [csvData, setCsvData] = useState('');
@@ -87,20 +87,15 @@ export function BulkUpload({ type }: BulkUploadProps) {
         return;
       };
       
-      const existingRegNumbers = new Set(allStudents.map(s => s.register_number));
-      const validNewStudents = newStudents.filter(s => s.register_number && !existingRegNumbers.has(s.register_number));
-
-      if(validNewStudents.length > 0) {
-        await addBulkStudents(validNewStudents);
-      }
+      await addBulkStudents(newStudents);
 
       toast({
         title: 'Upload Complete',
-        description: `Successfully processed and added ${validNewStudents.length} new student(s). Skipped ${newStudents.length - validNewStudents.length} duplicates.`,
+        description: `Processed ${newStudents.length} student records.`,
       });
       setCsvData('');
-    } catch (e) {
-      toast({ variant: 'destructive', title: 'Upload Failed', description: 'Could not process student data. Check for formatting errors.' });
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Upload Failed', description: e.message || 'Could not process student data. Check for formatting errors.' });
     } finally {
       setIsLoading(false);
     }
@@ -116,20 +111,15 @@ export function BulkUpload({ type }: BulkUploadProps) {
             return;
         };
 
-       const existingFacultyIds = new Set(allFaculty.map(f => f.faculty_id));
-       const validNewFaculty = newFaculty.filter(f => f.faculty_id && !existingFacultyIds.has(f.faculty_id));
-       
-       if(validNewFaculty.length > 0) {
-        await addBulkFaculty(validNewFaculty);
-       }
+       await addBulkFaculty(newFaculty);
        
       toast({
         title: 'Upload Complete',
-        description: `Successfully processed and added ${validNewFaculty.length} new faculty member(s). Skipped ${newFaculty.length - validNewFaculty.length} duplicates.`,
+        description: `Processed ${newFaculty.length} faculty records.`,
       });
       setCsvData('');
-    } catch (e) {
-      toast({ variant: 'destructive', title: 'Upload Failed', description: 'Could not process faculty data. Check for formatting errors.' });
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Upload Failed', description: e.message ||'Could not process faculty data. Check for formatting errors.' });
     } finally {
       setIsLoading(false);
     }
@@ -144,19 +134,16 @@ export function BulkUpload({ type }: BulkUploadProps) {
             setIsLoading(false);
             return;
         };
-       const validNewMappings = newMappings.filter(m => m.class_name && m.faculty_id && m.subject);
-
-       if(validNewMappings.length > 0) {
-         await addBulkMappings(validNewMappings);
-       }
+       
+       await addBulkMappings(newMappings);
        
       toast({
         title: 'Upload Complete',
-        description: `Successfully processed and added ${validNewMappings.length} new mapping(s).`,
+        description: `Successfully processed and added ${newMappings.length} new mapping(s).`,
       });
       setCsvData('');
-    } catch (e) {
-      toast({ variant: 'destructive', title: 'Upload Failed', description: 'Could not process mapping data. Check for formatting errors.' });
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Upload Failed', description: e.message || 'Could not process mapping data. Check for formatting errors.' });
     } finally {
       setIsLoading(false);
     }
