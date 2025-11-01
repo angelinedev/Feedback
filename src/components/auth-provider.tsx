@@ -160,7 +160,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       
       let unsubFeedbacks: () => void;
-      let unsubStudents: () => void;
+      let unsubStudents: () => void = () => {};
+      let unsubFacultyData: () => void = () => {};
+
       // Fetch only relevant feedback
       if (user.role === 'student') {
         const qFeedback = query(collection(firestore, 'feedback'), where('student_id', '==', user.id));
@@ -176,11 +178,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setFeedbacks(snap.docs.map((d) => ({ id: d.id, ...d.data(), submitted_at: d.data().submitted_at?.toDate() } as Feedback)))
         );
          const qFaculty = query(collection(firestore, 'faculty'), where('__name__', '==', user.id));
-        unsubStudents = onSnapshot(qFaculty, (snap) => 
-            setFaculty(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Faculty)))
+        unsubFacultyData = onSnapshot(qFaculty, (snap) => 
+            setFaculty(prev => [...prev.filter(f => f.id !== user.id), ...snap.docs.map((d) => ({ id: d.id, ...d.data() } as Faculty))])
         );
       }
-      return () => { unsubFaculty(); unsubMappings(); unsubFeedbacks(); unsubStudents(); };
+      return () => { unsubFaculty(); unsubMappings(); unsubFeedbacks(); unsubStudents(); unsubFacultyData() };
     }
 
 
@@ -453,5 +455,3 @@ export function useAuth() {
   }
   return context;
 }
-
-    
