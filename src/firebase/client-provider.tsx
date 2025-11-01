@@ -4,8 +4,8 @@
 import React, { useMemo, type ReactNode } from 'react';
 import { FirebaseProvider } from '@/firebase/provider';
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getAuth, type Auth } from 'firebase/auth';
+import { getFirestore, type Firestore } from 'firebase/firestore';
 
 
 // This configuration uses environment variables for security and flexibility.
@@ -18,29 +18,26 @@ const firebaseConfig = {
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
 };
 
-function initializeFirebase() {
+function initializeFirebase(): { firebaseApp: FirebaseApp, auth: Auth, firestore: Firestore } | { firebaseApp: null, auth: null, firestore: null } {
   const allConfigAvailable = Object.values(firebaseConfig).every(Boolean);
 
   if (!allConfigAvailable) {
-      console.error("Firebase config is missing or incomplete in your .env file. Please ensure all NEXT_PUBLIC_FIREBASE_ variables are set.");
+      console.error("Firebase config is missing or incomplete. Please ensure all NEXT_PUBLIC_FIREBASE_ variables are set in your .env file.");
       // Return null services to prevent app crash, the UI will show an error message.
       return { firebaseApp: null, auth: null, firestore: null };
   }
 
-  if (getApps().length > 0) {
-    const app = getApp();
-    return {
-        firebaseApp: app,
-        auth: getAuth(app),
-        firestore: getFirestore(app)
-    };
+  let app: FirebaseApp;
+  if (!getApps().length) {
+    app = initializeApp(firebaseConfig);
+  } else {
+    app = getApp();
   }
   
-  const firebaseApp = initializeApp(firebaseConfig);
   return {
-    firebaseApp,
-    auth: getAuth(firebaseApp),
-    firestore: getFirestore(firebaseApp)
+    firebaseApp: app,
+    auth: getAuth(app),
+    firestore: getFirestore(app)
   };
 }
 
@@ -64,7 +61,7 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
                     Firebase configuration is missing or incomplete.
                 </p>
                  <p className="text-muted-foreground mt-2 text-sm">
-                    If you are running this locally, please ensure your <code className="bg-muted px-1 py-0.5 rounded-sm">.env</code> file is correctly filled out with your Firebase project credentials.
+                    If you are running this locally, please ensure your <code className="bg-muted px-1 py-0.5 rounded-sm">.env</code> file is correctly filled out with your Firebase project credentials. Remember to restart your server after editing the file.
                 </p>
             </div>
         </div>

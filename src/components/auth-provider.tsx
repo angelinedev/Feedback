@@ -90,7 +90,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { auth, firestore } = useFirebase();
+  const { auth, firestore, areServicesAvailable } = useFirebase();
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [students, setStudents] = useState<Student[]>([]);
@@ -156,10 +156,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [firestore, user]);
 
   useEffect(() => {
-    if(!auth || !firestore) {
+    if(!areServicesAvailable) {
         setAuthLoading(false);
         return;
     };
+    if(!auth || !firestore) return;
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         const userDoc = await getDoc(doc(firestore, 'users', firebaseUser.uid));
@@ -207,7 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAuthLoading(false);
     });
     return () => unsubscribe();
-  }, [auth, firestore]);
+  }, [auth, firestore, areServicesAvailable]);
 
   useEffect(() => {
     if (authLoading) return;
