@@ -152,6 +152,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return () => { unsubStudents(); unsubFaculty(); unsubMappings(); unsubFeedbacks(); };
     } else {
       // Common listeners for both student and faculty
+      const unsubStudents = onSnapshot(query(collection(firestore, 'students'), where('__name__', '==', user.id)), (snap) =>
+        setStudents(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Student)))
+      );
       const unsubFaculty = onSnapshot(collection(firestore, 'faculty'), (snap) =>
         setFaculty(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Faculty)))
       );
@@ -171,7 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setFeedbacks(snap.docs.map((d) => ({ id: d.id, ...d.data(), submitted_at: d.data().submitted_at?.toDate() } as Feedback)))
         );
       }
-      return () => { unsubFaculty(); unsubMappings(); unsubFeedbacks(); };
+      return () => { unsubStudents(); unsubFaculty(); unsubMappings(); unsubFeedbacks(); };
     }
 
 
