@@ -82,7 +82,7 @@ export default function LoginForm() {
         </div>
         <div className="grid gap-2">
           <Label htmlFor={`${role}-password`}>Password</Label>
-          <Input id={`${role}-password`} name="password" type="password" required defaultValue={role === 'admin' ? 'admin' : ''} />
+          <Input id={`${role}-password`} name="password" type="password" required />
         </div>
         <Button type="submit" className="w-full transition-all duration-300 ease-in-out shadow-lg hover:shadow-primary/40" disabled={loading}>
           {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Login'}
