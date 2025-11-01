@@ -166,8 +166,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           let name: string = "User";
 
           if (role === 'admin') {
-            details = { id: firebaseUser.uid, name: 'Admin' };
-            name = "Admin"
+            const adminDoc = await getDoc(doc(firestore, 'admin', firebaseUser.uid));
+            details = { id: adminDoc.id, ...adminDoc.data() };
+            name = details.name;
           } else if (role === 'student') {
             const studentDoc = await getDoc(
               doc(firestore, 'students', firebaseUser.uid)
@@ -318,6 +319,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const deleteMapping = async (id: string) => {
         await deleteDoc(doc(firestore, "classFacultyMapping", id));
     };
+
+
 
     const addFeedback = async (feedbackData: Omit<Feedback, 'id'>) => {
         await addDoc(collection(firestore, "feedback"), { ...feedbackData, submitted_at: new Date() });
