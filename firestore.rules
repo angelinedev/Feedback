@@ -33,22 +33,20 @@ service cloud.firestore {
     
     match /admin/{adminId} {
       allow read: if isAdmin();
-      allow create: if noAdminsExist() || isAdmin() || request.auth.uid == adminId;
+      allow create: if noAdminsExist() || isAdmin();
       allow write: if isAdmin();
     }
 
     match /students/{studentId} {
         allow read: if isOwner(studentId) || isAdmin();
-        allow update: if isOwner(studentId);
-        allow write: if isAdmin();
-        allow create: if isAdmin() || request.auth.uid == studentId;
+        allow update, write: if isAdmin();
+        allow create: if isAdmin();
     }
     
     match /faculty/{facultyId} {
         allow read: if isSignedIn();
-        allow update: if isOwner(facultyId);
-        allow write: if isAdmin();
-        allow create: if isAdmin() || request.auth.uid == facultyId;
+        allow update, write: if isAdmin();
+        allow create: if isAdmin();
     }
     
     match /classFacultyMapping/{mappingId} {
@@ -68,3 +66,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

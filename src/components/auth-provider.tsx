@@ -161,7 +161,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       let unsubFeedbacks: () => void;
       let unsubStudents: () => void = () => {};
-      let unsubFacultyData: () => void = () => {};
 
       // Fetch only relevant feedback
       if (user.role === 'student') {
@@ -169,20 +168,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         unsubFeedbacks = onSnapshot(qFeedback, (snap) =>
             setFeedbacks(snap.docs.map((d) => ({ id: d.id, ...d.data(), submitted_at: d.data().submitted_at?.toDate() } as Feedback)))
         );
-        const qStudents = query(collection(firestore, 'students'), where('__name__', '==', user.id));
-        unsubStudents = onSnapshot(qStudents, (snap) => 
-            setStudents(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Student)))
-        );
       } else { // faculty
-        unsubFeedbacks = onSnapshot(collection(firestore, 'feedback'), (snap) =>
+        const facultyUser = user.details as Faculty;
+        const qFeedback = query(collection(firestore, 'feedback'), where('faculty_id', '==', facultyUser.faculty_id));
+        unsubFeedbacks = onSnapshot(qFeedback, (snap) =>
             setFeedbacks(snap.docs.map((d) => ({ id: d.id, ...d.data(), submitted_at: d.data().submitted_at?.toDate() } as Feedback)))
         );
-         const qFaculty = query(collection(firestore, 'faculty'), where('__name__', '==', user.id));
-        unsubFacultyData = onSnapshot(qFaculty, (snap) => 
-            setFaculty(prev => [...prev.filter(f => f.id !== user.id), ...snap.docs.map((d) => ({ id: d.id, ...d.data() } as Faculty))])
-        );
       }
-      return () => { unsubFaculty(); unsubMappings(); unsubFeedbacks(); unsubStudents(); unsubFacultyData() };
+      return () => { unsubFaculty(); unsubMappings(); unsubFeedbacks(); unsubStudents(); };
     }
 
 
@@ -455,3 +448,5 @@ export function useAuth() {
   }
   return context;
 }
+
+    
