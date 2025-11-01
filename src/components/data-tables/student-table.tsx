@@ -224,7 +224,8 @@ export function StudentTable({}: StudentTableProps) {
                     <DialogTrigger asChild>
                         <Button>
                             <PlusCircle className="mr-2 h-4 w-4" /> Add Student
-                        </Button>                    </DialogTrigger>
+                        </Button>
+                    </DialogTrigger>
                     <DialogContent>
                         <DialogHeader>
                             <DialogTitle>Add New Student</DialogTitle>
