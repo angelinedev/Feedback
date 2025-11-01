@@ -26,7 +26,7 @@ export default function FacultyDashboard() {
   const { user, changePassword } = useAuth();
   const { firestore } = useFirebase();
 
-  const faculty = user?.details as Faculty;
+  const faculty = user?.details as Faculty | undefined;
 
   const mappingsQuery = useMemo(() => {
     if (!firestore || !faculty?.faculty_id) return null;
@@ -34,9 +34,9 @@ export default function FacultyDashboard() {
   }, [firestore, faculty?.faculty_id]);
 
   const allFeedbackQuery = useMemo(() => {
-    if (!firestore || !user || user.role !== 'faculty') return null;
-    return query(collection(firestore, 'feedback'), where('faculty_id', '==', (user.details as Faculty).faculty_id));
-  }, [firestore, user]);
+    if (!firestore || !faculty?.faculty_id) return null;
+    return query(collection(firestore, 'feedback'), where('faculty_id', '==', faculty.faculty_id));
+  }, [firestore, faculty?.faculty_id]);
 
   const allStudentsQuery = useMemo(() => {
     if (!firestore || !user || user.role !== 'faculty') return null;
@@ -113,7 +113,7 @@ export default function FacultyDashboard() {
   }, [selectedMapping, allStudents]);
 
   const shuffledComments = useMemo(() => {
-    return feedbackForSubject
+    return (feedbackForSubject || [])
       .map(f => f.comment)
       .filter((c): c is string => c !== null && c.trim() !== '')
       .sort(() => Math.random() - 0.5);
@@ -233,5 +233,3 @@ export default function FacultyDashboard() {
     </div>
   );
 }
-
-    
