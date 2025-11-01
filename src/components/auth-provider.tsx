@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, {
@@ -160,9 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       
       let unsubFeedbacks: () => void;
-      let unsubStudents: () => void = () => {};
-
-      // Fetch only relevant feedback
+      
       if (user.role === 'student') {
         const qFeedback = query(collection(firestore, 'feedback'), where('student_id', '==', user.id));
         unsubFeedbacks = onSnapshot(qFeedback, (snap) =>
@@ -175,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setFeedbacks(snap.docs.map((d) => ({ id: d.id, ...d.data(), submitted_at: d.data().submitted_at?.toDate() } as Feedback)))
         );
       }
-      return () => { unsubFaculty(); unsubMappings(); unsubFeedbacks(); unsubStudents(); };
+      return () => { unsubFaculty(); unsubMappings(); unsubFeedbacks(); };
     }
 
 
@@ -448,5 +445,3 @@ export function useAuth() {
   }
   return context;
 }
-
-    
