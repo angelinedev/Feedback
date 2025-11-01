@@ -4,8 +4,9 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useFirebase } from '@/firebase/provider';
-import type { Student, Faculty, Feedback, ClassFacultyMapping } from '@/lib/types';
+import type { Student, Faculty, Feedback, ClassFacultyMapping, Question } from '@/lib/types';
 import { collection, doc, addDoc, updateDoc, deleteDoc, writeBatch, where, getDocs, query, DocumentData } from 'firebase/firestore';
+import { useCollection } from '@/firebase/firestore/use-collection';
 
 export type UserRole = 'admin' | 'student' | 'faculty';
 
