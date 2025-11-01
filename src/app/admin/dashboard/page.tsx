@@ -8,8 +8,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { ResponseRateChart } from '@/components/charts/response-rate-chart';
 import { FeedbackCriteriaChart } from '@/components/charts/feedback-criteria-chart';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import type { Faculty } from '@/lib/types';
 import { SubjectReportCard } from '@/components/subject-report-card';
+import { ClassAverageChart } from '@/components/charts/class-average-chart';
 
 export default function AdminDashboard() {
   const { feedback: allFeedback, students: allStudents, mappings: allMappings, faculty: allFaculty } = useAuth();
@@ -48,10 +48,6 @@ export default function AdminDashboard() {
     });
     return ratingCount > 0 ? (totalRating / ratingCount) : 0;
   }, [allFeedback]);
-
-  const uniqueClasses = useMemo(() => {
-    return [...new Set(allMappings.map(m => m.class_name))].sort();
-  }, [allMappings]);
 
   return (
     <>
@@ -132,6 +128,18 @@ export default function AdminDashboard() {
         </div>
 
         <Separator className="my-4" />
+        
+        <Card className="shadow-2xl">
+          <CardHeader>
+            <CardTitle>Average Feedback Score by Class</CardTitle>
+            <CardDescription>Compares the overall average feedback score for teachers across different classes.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ClassAverageChart allFeedback={allFeedback} allMappings={allMappings} />
+          </CardContent>
+        </Card>
+
+        <Separator className="my-4" />
 
         <Card className="shadow-2xl">
           <CardHeader>
@@ -169,45 +177,6 @@ export default function AdminDashboard() {
                   </AccordionItem>
                 )
               })}
-            </Accordion>
-          </CardContent>
-        </Card>
-
-        <Separator className="my-4" />
-
-        <Card className="shadow-2xl">
-          <CardHeader>
-            <CardTitle>Class Feedback Analysis</CardTitle>
-            <CardDescription>Review detailed feedback reports for each class.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Accordion type="single" collapsible className="w-full">
-                {uniqueClasses.map(className => {
-                   const classMappings = allMappings.filter(m => m.class_name === className);
-                   if(classMappings.length === 0) return null;
-
-                   return (
-                    <AccordionItem value={className} key={className}>
-                        <AccordionTrigger className="hover:bg-muted/50 px-4 rounded-md">
-                           <div className="font-bold text-base">{className}</div>
-                        </AccordionTrigger>
-                         <AccordionContent className="p-4 bg-muted/20 rounded-b-md">
-                            <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2">
-                               {classMappings.map(mapping => (
-                                 <SubjectReportCard
-                                    key={`${mapping.faculty_id}-${mapping.subject}-${mapping.class_name}`}
-                                    facultyId={mapping.faculty_id}
-                                    subject={mapping.subject}
-                                    className={mapping.class_name}
-                                    allFeedback={allFeedback}
-                                    allFaculty={allFaculty}
-                                 />
-                               ))}
-                            </div>
-                        </AccordionContent>
-                    </AccordionItem>
-                   )
-                })}
             </Accordion>
           </CardContent>
         </Card>

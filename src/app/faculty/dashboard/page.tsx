@@ -6,10 +6,9 @@ import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Faculty } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { KeyRound } from 'lucide-react';
+import { KeyRound, Star, TrendingUp } from 'lucide-react';
 import { ChangePasswordDialog } from '@/components/change-password-dialog';
 import { SubjectReportCard } from '@/components/subject-report-card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function FacultyDashboard() {
   const { user, mappings, feedback: allFeedback, faculty: allFaculty } = useAuth();
@@ -22,22 +21,31 @@ export default function FacultyDashboard() {
     return mappings.filter(mapping => mapping.faculty_id === faculty.faculty_id);
   }, [faculty?.faculty_id, mappings]);
 
-  const [selectedSubjectKey, setSelectedSubjectKey] = useState<string>(
-    assignedSubjects.length > 0 ? `${assignedSubjects[0].subject}-${assignedSubjects[0].class_name}` : ''
-  );
+  const overallAverageScore = useMemo(() => {
+    if (!faculty?.faculty_id) return 0;
+    
+    const facultyFeedback = allFeedback.filter(fb => fb.faculty_id === faculty.faculty_id);
+    if(facultyFeedback.length === 0) return 0;
 
-  const selectedMapping = useMemo(() => {
-    if (!selectedSubjectKey) return null;
-    const [subject, className] = selectedSubjectKey.split('-');
-    return assignedSubjects.find(m => m.subject === subject && m.class_name === className) || null;
-  }, [selectedSubjectKey, assignedSubjects]);
+    let totalRating = 0;
+    let ratingCount = 0;
+    facultyFeedback.forEach(fb => {
+      (fb.ratings || []).forEach(r => {
+        totalRating += r.rating;
+        ratingCount++;
+      });
+    });
+
+    return ratingCount > 0 ? (totalRating / ratingCount) : 0;
+  }, [faculty?.faculty_id, allFeedback]);
+
 
   return (
     <div className="container mx-auto">
       <div className="mb-8 flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Welcome, {user?.name}</h1>
-          <p className="text-muted-foreground">Select a subject to view its detailed feedback report.</p>
+          <p className="text-muted-foreground">Here is your detailed feedback report.</p>
         </div>
         <ChangePasswordDialog 
           open={isPasswordDialogOpen} 
@@ -49,45 +57,45 @@ export default function FacultyDashboard() {
         </ChangePasswordDialog>
       </div>
 
-      <div className="grid gap-6">
+      <div className="grid gap-8">
         <Card className="shadow-2xl">
-          <CardHeader>
-            <CardTitle>Feedback Report</CardTitle>
-            <CardDescription>Select one of your assigned subjects to see the detailed report.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {assignedSubjects.length > 0 ? (
-                <div className="space-y-6">
-                    <Select value={selectedSubjectKey} onValueChange={setSelectedSubjectKey}>
-                        <SelectTrigger className="w-[300px]">
-                            <SelectValue placeholder="Select a subject..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {assignedSubjects.map(m => (
-                                <SelectItem key={`${m.subject}-${m.class_name}`} value={`${m.subject}-${m.class_name}`}>
-                                    {m.subject} ({m.class_name})
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    
-                    {selectedMapping && faculty && (
-                        <div className="mt-4">
-                            <SubjectReportCard
-                                facultyId={faculty.faculty_id}
-                                subject={selectedMapping.subject}
-                                className={selectedMapping.class_name}
-                                allFeedback={allFeedback}
-                                allFaculty={allFaculty}
-                            />
-                        </div>
-                    )}
+           <CardHeader>
+             <CardTitle>Performance Overview</CardTitle>
+             <CardDescription>Your average score across all subjects and classes.</CardDescription>
+           </CardHeader>
+           <CardContent>
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center justify-center bg-primary/10 text-primary rounded-full p-4">
+                   <Star className="h-8 w-8" />
                 </div>
-            ) : (
-                <p className="text-muted-foreground">You are not currently assigned to any subjects.</p>
-            )}
-          </CardContent>
+                <div>
+                   <p className="text-sm text-muted-foreground">Overall Average Score</p>
+                   <p className="text-4xl font-bold tracking-tighter">{overallAverageScore.toFixed(2)}</p>
+                </div>
+              </div>
+           </CardContent>
         </Card>
+
+        {assignedSubjects.length > 0 ? (
+            <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+                {assignedSubjects.map(mapping => (
+                    <SubjectReportCard
+                        key={`${mapping.faculty_id}-${mapping.subject}-${mapping.class_name}`}
+                        facultyId={mapping.faculty_id}
+                        subject={mapping.subject}
+                        className={mapping.class_name}
+                        allFeedback={allFeedback}
+                        allFaculty={allFaculty}
+                    />
+                ))}
+            </div>
+        ) : (
+            <Card className="shadow-2xl">
+              <CardContent className="pt-6">
+                <p className="text-center text-muted-foreground">You are not currently assigned to any subjects.</p>
+              </CardContent>
+            </Card>
+        )}
       </div>
     </div>
   );
