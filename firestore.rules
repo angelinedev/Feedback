@@ -13,8 +13,8 @@ service cloud.firestore {
 
     match /students/{studentId} {
       allow read, update, delete: if isOwner(studentId);
-      allow create: if isSignedIn(); 
-      allow list: if isSignedIn(); 
+      allow create: if isSignedIn();
+      allow list: if isSignedIn();
     }
 
     match /faculty/{facultyId} {

@@ -145,23 +145,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user || !firestore) throw new Error("Not authenticated.");
 
     let success = false;
+    let details: Student | Faculty;
 
     if (user.role === 'student') {
-      const details = user.details as Student;
-      const userRef = doc(firestore, 'students', details.id);
-      const userDoc = (await getDocs(query(collection(firestore, 'students'), where('register_number', '==', details.register_number)))).docs[0];
-      if (userDoc.data().password === currentPassword) {
-        await updateDoc(userRef, { password: newPassword });
-        success = true;
-      }
+        details = user.details as Student;
+        const q = query(collection(firestore, 'students'), where('register_number', '==', details.register_number));
+        const querySnapshot = await getDocs(q);
+        if(!querySnapshot.empty){
+            const userDoc = querySnapshot.docs[0];
+            if (userDoc.data().password === currentPassword) {
+                await updateDoc(userDoc.ref, { password: newPassword });
+                success = true;
+            }
+        }
     } else if (user.role === 'faculty') {
-      const details = user.details as Faculty;
-      const userRef = doc(firestore, 'faculty', details.id);
-      const userDoc = (await getDocs(query(collection(firestore, 'faculty'), where('faculty_id', '==', details.faculty_id)))).docs[0];
-      if (userDoc.data().password === currentPassword) {
-        await updateDoc(userRef, { password: newPassword });
-        success = true;
-      }
+        details = user.details as Faculty;
+        const q = query(collection(firestore, 'faculty'), where('faculty_id', '==', details.faculty_id));
+        const querySnapshot = await getDocs(q);
+        if(!querySnapshot.empty){
+            const userDoc = querySnapshot.docs[0];
+            if (userDoc.data().password === currentPassword) {
+                await updateDoc(userDoc.ref, { password: newPassword });
+                success = true;
+            }
+        }
     } else if (user.role === 'admin') {
       throw new Error("Admin password cannot be changed in this version.");
     }
@@ -271,10 +278,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function useAuth() {
+export function useAuthContext() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error('useAuthContext must be used within an AuthProvider');
   }
   return context;
 }
