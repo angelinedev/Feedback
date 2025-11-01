@@ -31,7 +31,7 @@ export default function StudentDashboard() {
   }, [firestore, student?.id]);
 
   const facultyQuery = useMemo(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !user ) return null;
     return collection(firestore, 'faculty');
   }, [firestore, user]);
 
