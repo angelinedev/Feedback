@@ -23,11 +23,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
     
-    // The 'users' collection stores a 'role' for each user.
+    // The 'users' collection stores a role for each user.
     // Any signed-in user can read their own role document.
     // Admins can read or write any user role document.
     match /users/{userId} {
-      allow read, write: if isOwner(userId) || isAdmin();
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isAdmin(); // Only admins can create/update roles
     }
     
     // The 'admin' collection is the source of truth for admin privileges.

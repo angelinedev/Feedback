@@ -13,7 +13,7 @@ import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFirebase } from "@/firebase/provider";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, writeBatch } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 
 const setupSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters long."),
@@ -45,20 +45,14 @@ export default function SetupAdminPage() {
     }
 
     try {
-      // 1. Create the user in Firebase Auth
+      // 1. Create the user in Firebase Auth.
+      // This will fail if the user already exists, which is the desired behavior.
       const userCredential = await createUserWithEmailAndPassword(auth, adminEmail, values.password);
       const uid = userCredential.user.uid;
 
-      // 2. Create the corresponding documents in Firestore
-      const batch = writeBatch(firestore);
-      
-      const userRoleRef = doc(firestore, "users", uid);
-      batch.set(userRolef, { role: "admin", name: "Admin" });
-      
+      // 2. Create the admin document in Firestore to grant the role.
       const adminRoleRef = doc(firestore, "admin", uid);
-      batch.set(adminRoleRef, { name: "Admin", id: uid, email: adminEmail });
-
-      await batch.commit();
+      await setDoc(adminRoleRef, { name: "Admin", id: uid, email: adminEmail });
       
       toast({
         title: "Admin Account Setup Complete!",
@@ -69,7 +63,7 @@ export default function SetupAdminPage() {
     } catch (error: any) {
       console.error(error);
       const description = error.code === 'auth/email-already-in-use' 
-        ? 'Admin user already exists. If you need to reset the password, please do so from the Firebase Console.'
+        ? 'Admin user already exists. If you forgot the password, you must reset it from the Firebase Console.'
         : error.message || "An unexpected error occurred.";
       
       toast({
@@ -80,7 +74,7 @@ export default function SetupAdminPage() {
 
     } finally {
       // Always sign out any session that might have been created during the process
-      if (auth?.currentUser) {
+      if (auth.currentUser) {
         await auth.signOut();
       }
       setLoading(false);

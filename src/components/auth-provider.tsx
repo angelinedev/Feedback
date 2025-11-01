@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, {
@@ -162,6 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        // Simplified and corrected admin check
         const adminDocRef = doc(firestore, 'admin', firebaseUser.uid);
         const adminDoc = await getDoc(adminDocRef);
 
@@ -173,7 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 details: { id: firebaseUser.uid, name: 'Admin' }
             });
         } else {
-            // Not an admin, check for student or faculty
+            // Not an admin, check for student or faculty in the 'users' collection
             const userDocRef = doc(firestore, 'users', firebaseUser.uid);
             const userDoc = await getDoc(userDocRef);
 
@@ -194,7 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 }
                 setUser({ id: firebaseUser.uid, name, role, details });
             } else {
-                // User exists in auth but not in any role collection
+                // User exists in auth but not in our main user role collections
                 setUser(null);
             }
         }
