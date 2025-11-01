@@ -163,40 +163,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if(!auth || !firestore) return;
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const userDoc = await getDoc(doc(firestore, 'users', firebaseUser.uid));
+        const userDocRef = doc(firestore, 'users', firebaseUser.uid);
+        const userDoc = await getDoc(userDocRef);
+
         if (userDoc.exists()) {
           const userData = userDoc.data();
           const role = userData.role as UserRole;
           let details: any;
-          let name: string = "User";
+          let name: string = userData.name || "User";
 
           if (role === 'admin') {
-            const adminDoc = await getDoc(doc(firestore, 'admin', firebaseUser.uid));
-            details = { id: adminDoc.id, ...adminDoc.data() };
-            name = details.name;
+              details = { id: firebaseUser.uid, name: "Admin" };
+              name = "Admin";
           } else if (role === 'student') {
-            const studentDoc = await getDoc(
-              doc(firestore, 'students', firebaseUser.uid)
-            );
+            const studentDoc = await getDoc(doc(firestore, 'students', firebaseUser.uid));
             details = { id: studentDoc.id, ...studentDoc.data() };
-             name = details.name;
+            name = details.name;
           } else if (role === 'faculty') {
-            const facultyDoc = await getDoc(
-              doc(firestore, 'faculty', firebaseUser.uid)
-            );
+            const facultyDoc = await getDoc(doc(firestore, 'faculty', firebaseUser.uid));
             details = { id: facultyDoc.id, ...facultyDoc.data() };
             name = details.name;
           }
 
-          setUser({
-            id: firebaseUser.uid,
-            name: name,
-            role,
-            details,
-          });
+          setUser({ id: firebaseUser.uid, name, role, details });
         } else {
-            // This can happen if the user exists in Auth but not in Firestore, e.g., during setup
-            setUser(null);
+            // Fallback for admin if user doc doesn't exist for some reason
+            const adminDoc = await getDoc(doc(firestore, 'admin', firebaseUser.uid));
+            if (adminDoc.exists()) {
+                setUser({
+                    id: firebaseUser.uid,
+                    name: 'Admin',
+                    role: 'admin',
+                    details: { id: firebaseUser.uid, name: 'Admin' }
+                });
+            } else {
+                setUser(null);
+            }
         }
       } else {
         setUser(null);
@@ -431,3 +433,5 @@ export function useAuth() {
   }
   return context;
 }
+
+    

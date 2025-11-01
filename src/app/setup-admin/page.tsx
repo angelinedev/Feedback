@@ -71,8 +71,8 @@ export default function SetupAdminPage() {
       const userRoleRef = doc(firestore, "users", uid);
       batch.set(userRoleRef, { role: "admin", name: "Admin" });
       
-      const adminDetailsRef = doc(firestore, "admin", uid);
-      batch.set(adminDetailsRef, { name: "Admin", id: uid, email: adminEmail });
+      const adminRoleRef = doc(firestore, "admin", uid);
+      batch.set(adminRoleRef, { name: "Admin", id: uid, email: adminEmail });
 
       await batch.commit();
       
@@ -166,3 +166,5 @@ export default function SetupAdminPage() {
     </main>
   );
 }
+
+    

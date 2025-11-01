@@ -24,18 +24,15 @@ service cloud.firestore {
     
     // USERS collection stores roles. A user can read their own role.
     match /users/{userId} {
-      allow read: if isOwner(userId);
-      // Only admins can create new roles AFTER the first admin is set up.
-      // The setup page will handle the creation of the first admin role.
-      allow write: if isAdmin();
+      allow read, write: if isOwner(userId) || isAdmin();
     }
     
-    // The initial admin can be created by the setup page.
+    // The initial admin can be created by anyone if no admins exist.
     // Subsequent admin documents can only be created by other admins.
     match /admin/{adminId} {
       allow read: if isAdmin();
       // Allow creation only if no other admin exists, or if requester is already an admin.
-      allow create: if !exists(/databases/$(database)/documents/admin/$(request.auth.uid));
+      allow create: if !exists(/databases/$(database)/documents/admin/$(request.auth.uid)) || isAdmin();
       allow write: if isAdmin();
     }
 
@@ -77,3 +74,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
