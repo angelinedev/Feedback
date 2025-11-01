@@ -6,7 +6,7 @@ import { StudentTable } from "@/components/data-tables/student-table";
 import { FacultyTable } from "@/components/data-tables/faculty-table";
 import { QuestionsTable } from "@/components/data-tables/questions-table";
 import { ClassFacultyMappingTable } from "@/components/data-tables/class-faculty-mapping-table";
-import { BrainCircuit, Upload, Users, Briefcase, HelpCircle } from "lucide-react";
+import { BrainCircuit, Users, Briefcase, HelpCircle } from "lucide-react";
 import { BulkUpload } from "@/components/bulk-upload";
 
 export default function DataManagementPage() {
