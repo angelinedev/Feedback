@@ -203,7 +203,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return null;
   }, [firestore, user]);
 
-  const questionsQuery = useMemo(() => firestore ? collection(firestore, 'questions') : null, [firestore]);
+  const questionsQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, 'questions');
+  }, [firestore, user]);
   
   const feedbackQuery = useMemo(() => {
     if (!firestore || !user) return null;
