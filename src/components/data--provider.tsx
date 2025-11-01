@@ -5,7 +5,7 @@ import React, { createContext, useState, useContext, ReactNode, useMemo, useEffe
 import { useRouter, usePathname } from 'next/navigation';
 import type { Student, Faculty, ClassFacultyMapping, Feedback, Question } from '@/lib/types';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { useFirestore } from '@/firebase';
+import { useFirebase } from '@/firebase';
 import { collection, doc, addDoc, updateDoc, deleteDoc, writeBatch, where, getDocs, query, DocumentData } from 'firebase/firestore';
 
 export type UserRole = 'admin' | 'student' | 'faculty';
@@ -49,149 +49,16 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const firestore = useFirestore();
-  const [user, setUser] = useState<User | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  const router = useRouter();
-  const pathname = usePathname();
-
-  // Auth logic
-  useEffect(() => {
-    const storedUser = localStorage.getItem('feedloop-user');
-    if (storedUser) {
-      try {
-        const parsedUser: User = JSON.parse(storedUser);
-        if (parsedUser.id && parsedUser.role && parsedUser.name) {
-          setUser(parsedUser);
-        }
-      } catch (error) {
-        console.error("Failed to parse user from localStorage", error);
-        localStorage.removeItem('feedloop-user');
-      }
-    }
-    setAuthLoading(false);
-  }, []);
-
-  useEffect(() => {
-    if (authLoading) return;
-
-    const publicPaths = ['/'];
-    const pathIsPublic = publicPaths.includes(pathname);
-
-    if (!user && !pathIsPublic) {
-      router.push('/');
-    } else if (user && pathIsPublic) {
-      router.push(`/${user.role}/dashboard`);
-    }
-
-  }, [user, authLoading, pathname, router]);
-
-  const findUserInFirestore = async (collectionName: string, idField: string, id: string, pass: string) => {
-    if(!firestore) return null;
-    const q = query(collection(firestore, collectionName), where(idField, '==', id));
-    const querySnapshot = await getDocs(q);
-    if (querySnapshot.empty) return null;
-
-    const userDoc = querySnapshot.docs[0];
-    const userData = userDoc.data() as DocumentData;
-
-    if (userData.password === pass) {
-        return { ...userData, id: userDoc.id } as Student | Faculty;
-    }
-    return null;
-  }
-
-  const login = async (role: UserRole, id: string, pass: string): Promise<boolean> => {
-    setAuthLoading(true);
-    let foundUser: User | null = null;
-    
-    if (role === 'admin') {
-      if (id === 'admin' && pass === 'admin') {
-        foundUser = { id: 'admin', name: 'Admin', role: 'admin', details: { id: 'admin', name: 'Admin' } };
-      }
-    } else if (role === 'student') {
-      const student = await findUserInFirestore('students', 'register_number', id, pass) as Student | null;
-      if (student) {
-        foundUser = { id: student.id, name: student.name, role: 'student', details: student };
-      }
-    } else if (role === 'faculty') {
-      const facultyMember = await findUserInFirestore('faculty', 'faculty_id', id, pass) as Faculty | null;
-      if (facultyMember) {
-        foundUser = { id: facultyMember.id, name: facultyMember.name, role: 'faculty', details: facultyMember };
-      }
-    }
-
-    if (foundUser) {
-      setUser(foundUser);
-      localStorage.setItem('feedloop-user', JSON.stringify(foundUser));
-      router.push(`/${foundUser.role}/dashboard`);
-      setAuthLoading(false);
-      return true;
-    }
-
-    setAuthLoading(false);
-    return false;
-  };
-
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('feedloop-user');
-    router.push('/');
-  };
-
-  const updateStudentPassword = async (id: string, newPass: string) => {
-    if(!firestore) return;
-    await updateDoc(doc(firestore, 'students', id), { password: newPass });
-  };
-
-  const updateFacultyPassword = async (id: string, newPass: string) => {
-    if(!firestore) return;
-     await updateDoc(doc(firestore, 'faculty', id), { password: newPass });
-  };
-
-  const changePassword = async (currentPassword: string, newPassword: string) => {
-    if (!user) throw new Error("Not authenticated.");
-
-    let success = false;
-    let details: Student | Faculty;
-
-    if(user.role === 'student') {
-        details = user.details as Student;
-        if(details.password === currentPassword) {
-            await updateStudentPassword(details.id, newPassword);
-            success = true;
-        }
-    } else if (user.role === 'faculty') {
-        details = user.details as Faculty;
-        if(details.password === currentPassword) {
-            await updateFacultyPassword(details.id, newPassword);
-            success = true;
-        }
-    } else if (user.role === 'admin') {
-        throw new Error("Admin password cannot be changed in this version.");
-    }
-    
-    if(!success) {
-        throw new Error("Incorrect current password.");
-    } else {
-        const updatedUser = {
-            ...user,
-            details: { ...user.details, password: newPassword }
-        };
-        setUser(updatedUser as User);
-        localStorage.setItem('feedloop-user', JSON.stringify(updatedUser));
-    }
-  };
-
-
-  // Queries
+  const { firestore } = useFirebase();
+  const { user, authLoading: isAuthLoading, login, logout, changePassword } = useAuth();
+  
   const studentsQuery = useMemo(() => {
-    if (!firestore || user?.role !== 'admin') return null;
+    if (!firestore || !user || user.role !== 'admin') return null;
     return collection(firestore, 'students');
   }, [firestore, user]);
 
   const facultyQuery = useMemo(() => {
-    if (!firestore || user?.role !== 'admin') return null;
+    if (!firestore || !user || user.role !== 'admin') return null;
     return collection(firestore, 'faculty');
   }, [firestore, user]);
   
@@ -225,22 +92,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
   
   useEffect(() => {
     async function fetchAllFaculty() {
-      if (firestore && user && (user.role === 'student' || user.role === 'faculty')) {
-        const facQuery = collection(firestore, 'faculty');
-        const snapshot = await getDocs(facQuery);
-        const facultyList = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Faculty));
-        setAllFaculty(facultyList);
-      } else if (user?.role === 'admin') {
-        setAllFaculty(facultyData || []);
-      }
+        if (!user || !firestore) return;
+        
+        if (user.role === 'student' || user.role === 'faculty') {
+            const facQuery = collection(firestore, 'faculty');
+            try {
+                const snapshot = await getDocs(facQuery);
+                const facultyList = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Faculty));
+                setAllFaculty(facultyList);
+            } catch(e) {
+                console.warn("Could not fetch all faculty directly. This is expected for non-admin users.");
+            }
+        } else if (user.role === 'admin') {
+            setAllFaculty(facultyData || []);
+        }
     }
-    if (user) {
-      fetchAllFaculty();
-    }
+    fetchAllFaculty();
   }, [firestore, user, facultyData]);
   
 
-  const loading = authLoading || studentsLoading || facultyLoading || mappingsLoading || feedbackLoading || questionsLoading;
+  const loading = isAuthLoading || studentsLoading || facultyLoading || mappingsLoading || feedbackLoading || questionsLoading;
   
   const addStudent = async (studentData: Omit<Student, 'id' | 'password'>, password: string) => {
     if(!firestore) return;
@@ -254,6 +125,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if(!firestore) return;
     await deleteDoc(doc(firestore, 'students', id));
   };
+  const updateStudentPassword = async (id: string, newPass: string) => {
+    if(!firestore) return;
+    await updateDoc(doc(firestore, 'students', id), { password: newPass });
+  };
 
   const addFaculty = async (facultyData: Omit<Faculty, 'id' | 'password'>, password: string) => {
     if(!firestore) return;
@@ -266,6 +141,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const deleteFaculty = async (id: string) => {
     if(!firestore) return;
     await deleteDoc(doc(firestore, 'faculty', id));
+  };
+  const updateFacultyPassword = async (id: string, newPass: string) => {
+    if(!firestore) return;
+     await updateDoc(doc(firestore, 'faculty', id), { password: newPass });
   };
 
   const addMapping = async (mappingData: Omit<ClassFacultyMapping, 'id'>) => {
@@ -326,19 +205,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     addBulkFaculty,
     addBulkMappings,
     user,
-    authLoading,
+    authLoading: isAuthLoading,
     login,
     logout,
     changePassword,
   };
-
-  if(authLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-          <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4 animate-spin"></div>
-      </div>
-    );
-  }
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }
@@ -350,5 +221,3 @@ export function useData() {
   }
   return context;
 }
-
-    

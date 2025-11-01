@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -10,10 +10,17 @@ import { Upload, Users, Briefcase, BrainCircuit, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import type { Student, Faculty, ClassFacultyMapping } from '@/lib/types';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { useFirebase } from '@/firebase/provider';
+import { collection } from 'firebase/firestore';
 
 export function BulkUpload() {
-  const { addBulkStudents, addBulkFaculty, addBulkMappings, students: allStudents, faculty: allFaculty } = useAuth();
+  const { addBulkStudents, addBulkFaculty, addBulkMappings } = useAuth();
   const { toast } = useToast();
+  const { firestore } = useFirebase();
+
+  const { data: students } = useCollection<Student>(collection(firestore, 'students'));
+  const { data: faculty } = useCollection<Faculty>(collection(firestore, 'faculty'));
   
   const [studentCsv, setStudentCsv] = useState('');
   const [facultyCsv, setFacultyCsv] = useState('');
@@ -22,6 +29,9 @@ export function BulkUpload() {
   const [isStudentLoading, setIsStudentLoading] = useState(false);
   const [isFacultyLoading, setIsFacultyLoading] = useState(false);
   const [isMappingLoading, setIsMappingLoading] = useState(false);
+
+  const allStudents = useMemo(() => students || [], [students]);
+  const allFaculty = useMemo(() => faculty || [], [faculty]);
 
   const processCsv = <T extends Record<string, string>>(
     csvText: string, 
@@ -203,5 +213,3 @@ export function BulkUpload() {
     </Tabs>
   );
 }
-
-    

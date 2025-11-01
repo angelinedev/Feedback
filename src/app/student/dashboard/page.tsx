@@ -7,19 +7,39 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { FeedbackForm } from '@/components/feedback-form';
-import type { ClassFacultyMapping, Student, Feedback, Rating, Faculty } from '@/lib/types';
+import type { ClassFacultyMapping, Student, Feedback, Rating, Faculty, Question } from '@/lib/types';
 import { CheckCircle, Edit, KeyRound } from 'lucide-react';
 import { ChangePasswordDialog } from '@/components/change-password-dialog';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { useFirebase } from '@/firebase/provider';
+import { collection, query, where } from 'firebase/firestore';
 
 export default function StudentDashboard() {
-  const { user, mappings, questions, addFeedback, feedback, faculty } = useAuth();
+  const { user, addFeedback } = useAuth();
+  const { firestore } = useFirebase();
+
+  const student = user?.details as Student | undefined;
+
+  const mappingsQuery = useMemo(() => {
+    if (!firestore || !student?.class_name) return null;
+    return query(collection(firestore, 'classFacultyMapping'), where('class_name', '==', student.class_name));
+  }, [firestore, student?.class_name]);
+
+  const feedbackQuery = useMemo(() => {
+    if (!firestore || !student?.id) return null;
+    return query(collection(firestore, 'feedback'), where('student_id', '==', student.id));
+  }, [firestore, student?.id]);
+
+  const { data: mappings } = useCollection<ClassFacultyMapping>(mappingsQuery);
+  const { data: feedback } = useCollection<Feedback>(feedbackQuery);
+  const { data: faculty } = useCollection<Faculty>(collection(firestore, 'faculty'));
+  const { data: questions } = useCollection<Question>(collection(firestore, 'questions'));
+
   const [selectedMapping, setSelectedMapping] = useState<(ClassFacultyMapping & { facultyName: string }) | null>(null);
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   
-  const student = user?.details as Student | undefined;
-  
   const subjectsForStudent = useMemo(() => {
-    if (!student?.class_name) return [];
+    if (!student?.class_name || !mappings || !faculty) return [];
     return mappings
       .filter(mapping => mapping.class_name === student.class_name)
       .map(mapping => {
@@ -32,7 +52,7 @@ export default function StudentDashboard() {
   }, [student?.class_name, mappings, faculty]);
 
   const submittedFeedbackKeys = useMemo(() => {
-    if (!student) return new Set();
+    if (!student || !feedback) return new Set();
     const studentFeedback = feedback.filter(f => f.student_id === student.id);
     return new Set(
       studentFeedback.map(f => `${f.faculty_id}-${f.subject}`)
@@ -52,7 +72,7 @@ export default function StudentDashboard() {
       semester: 'Spring 2024', // This could be dynamic in a real app
       submitted_at: new Date(),
     };
-    addFeedback(newFeedback, student.id);
+    addFeedback(newFeedback);
     setSelectedMapping(null);
   };
   
@@ -114,7 +134,7 @@ export default function StudentDashboard() {
                           </SheetDescription>
                         </SheetHeader>
                         <FeedbackForm
-                          questions={questions}
+                          questions={questions || []}
                           facultyId={selectedMapping.faculty_id}
                           subject={selectedMapping.subject}
                           onSubmit={handleFeedbackSubmit}
@@ -130,5 +150,3 @@ export default function StudentDashboard() {
     </div>
   );
 }
-
-    

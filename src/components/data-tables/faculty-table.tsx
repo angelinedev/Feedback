@@ -24,6 +24,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
 import { Input } from "../ui/input"
 import { useAuth } from "@/hooks/use-auth"
+import { useCollection } from "@/firebase/firestore/use-collection"
+import { useFirebase } from "@/firebase/provider"
+import { collection } from "firebase/firestore"
 
 interface FacultyTableProps {
 }
@@ -36,8 +39,8 @@ const facultySchema = z.object({
     password: z.string().min(6, "Password must be at least 6 characters."),
 });
 
-const FacultyForm = ({ faculty, onSave, onCancel }: { faculty?: Faculty; onSave: (data: Omit<Faculty, 'id'>) => void; onCancel: () => void; }) => {
-    const { faculty: allFaculty } = useAuth();
+const FacultyForm = ({ faculty, onSave, onCancel, allFaculty }: { faculty?: Faculty; onSave: (data: Omit<Faculty, 'id' | 'password'>, password?: string) => void; onCancel: () => void; allFaculty: Faculty[] }) => {
+    
     const existingFacultyIds = React.useMemo(() => new Set(allFaculty.map(f => f.faculty_id)), [allFaculty]);
 
     const formSchema = facultySchema.extend({
@@ -54,8 +57,8 @@ const FacultyForm = ({ faculty, onSave, onCancel }: { faculty?: Faculty; onSave:
     });
 
     const onSubmit = (values: z.infer<typeof formSchema>) => {
-        const { id, ...data } = values;
-        onSave(data);
+        const { id, password, ...data } = values;
+        onSave(data, password);
     };
 
     return (
@@ -122,14 +125,13 @@ const FacultyForm = ({ faculty, onSave, onCancel }: { faculty?: Faculty; onSave:
     );
 };
 
-const ActionsCell = ({ faculty }: { faculty: Faculty; }) => {
+const ActionsCell = ({ faculty, allFaculty }: { faculty: Faculty; allFaculty: Faculty[] }) => {
     const { updateFaculty, deleteFaculty, updateFacultyPassword } = useAuth();
     const [isEditing, setIsEditing] = React.useState(false);
     const { toast } = useToast();
     
-    const handleEditSave = async (data: Omit<Faculty, 'id'>) => {
-        const { password, ...updateData } = data;
-        await updateFaculty(faculty.id, updateData);
+    const handleEditSave = async (data: Omit<Faculty, 'id' | 'password'>, password?: string) => {
+        await updateFaculty(faculty.id, data);
         if(password) {
             await updateFacultyPassword(faculty.id, password);
         }
@@ -166,14 +168,14 @@ const ActionsCell = ({ faculty }: { faculty: Faculty; }) => {
                     <DialogTitle>Edit Faculty</DialogTitle>
                     <DialogDescription>Update the details for this faculty member.</DialogDescription>
                 </DialogHeader>
-                <FacultyForm faculty={faculty} onSave={handleEditSave} onCancel={() => setIsEditing(false)} />
+                <FacultyForm faculty={faculty} onSave={handleEditSave} onCancel={() => setIsEditing(false)} allFaculty={allFaculty} />
             </DialogContent>
         </Dialog>
      </>
     );
 };
 
-const getColumns = (): ColumnDef<Faculty>[] => [
+const getColumns = (allFaculty: Faculty[]): ColumnDef<Faculty>[] => [
   {
     accessorKey: "faculty_id",
     header: "Faculty ID",
@@ -188,20 +190,27 @@ const getColumns = (): ColumnDef<Faculty>[] => [
   },
   {
     id: "actions",
-    cell: ({ row }) => <ActionsCell faculty={row.original} />,
+    cell: ({ row }) => <ActionsCell faculty={row.original} allFaculty={allFaculty} />,
   },
 ];
 
 export function FacultyTable({}: FacultyTableProps) {
-    const { faculty, addFaculty } = useAuth();
+    const { addFaculty } = useAuth();
+    const { firestore } = useFirebase();
+    const { data: faculty } = useCollection<Faculty>(collection(firestore, 'faculty'));
+    
     const [isAdding, setIsAdding] = React.useState(false);
     const { toast } = useToast();
     
-    const columns = React.useMemo(() => getColumns(), []);
+    const allFaculty = React.useMemo(() => faculty || [], [faculty]);
+    const columns = React.useMemo(() => getColumns(allFaculty), [allFaculty]);
 
-    const handleAddSave = async (data: Omit<Faculty, 'id'>) => {
-        const { password, ...facultyData } = data;
-        await addFaculty(facultyData, password!);
+    const handleAddSave = async (data: Omit<Faculty, 'id' | 'password'>, password?: string) => {
+        if (!password) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Password is required for new faculty.' });
+            return;
+        }
+        await addFaculty(data, password);
         toast({ title: "Faculty Added", description: `${data.name} has been added.` });
         setIsAdding(false);
     };
@@ -225,13 +234,13 @@ export function FacultyTable({}: FacultyTableProps) {
                             <DialogTitle>Add New Faculty</DialogTitle>
                             <DialogDescription>Enter the details for the new faculty member.</DialogDescription>
                         </DialogHeader>
-                        <FacultyForm onSave={handleAddSave} onCancel={() => setIsAdding(false)} />
+                        <FacultyForm onSave={handleAddSave} onCancel={() => setIsAdding(false)} allFaculty={allFaculty} />
                     </DialogContent>
                 </Dialog>
             </div>
             <DataTable 
                 columns={columns} 
-                data={faculty}
+                data={allFaculty}
                 filterColumn="name"
                 filterPlaceholder="Filter by name..."
              />
@@ -239,5 +248,3 @@ export function FacultyTable({}: FacultyTableProps) {
     </Card>
   )
 }
-
-    

@@ -25,6 +25,9 @@ import { Input } from "../ui/input"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { useAuth } from "@/hooks/use-auth"
+import { useCollection } from "@/firebase/firestore/use-collection"
+import { useFirebase } from "@/firebase/provider"
+import { collection } from "firebase/firestore"
 
 interface ClassFacultyMappingTableProps {
 }
@@ -36,9 +39,8 @@ const mappingSchema = z.object({
     subject: z.string().min(1, "Subject is required."),
 });
 
-const MappingForm = ({ mapping, onSave, onCancel }: { mapping?: ClassFacultyMapping; onSave: (data: Omit<ClassFacultyMapping, 'id'>) => void; onCancel: () => void; }) => {
-    const { mappings, faculty } = useAuth();
-
+const MappingForm = ({ mapping, onSave, onCancel, mappings, faculty }: { mapping?: ClassFacultyMapping; onSave: (data: Omit<ClassFacultyMapping, 'id'>) => void; onCancel: () => void; mappings: ClassFacultyMapping[], faculty: Faculty[] }) => {
+    
     const existingMappings = React.useMemo(() => new Set(mappings.map(m => `${m.class_name}-${m.faculty_id}-${m.subject}`)), [mappings]);
     
     const formSchema = mappingSchema.refine(data => {
@@ -121,7 +123,7 @@ const MappingForm = ({ mapping, onSave, onCancel }: { mapping?: ClassFacultyMapp
 };
 
 
-const ActionsCell = ({ mapping }: { mapping: ClassFacultyMapping; }) => {
+const ActionsCell = ({ mapping, mappings, faculty }: { mapping: ClassFacultyMapping; mappings: ClassFacultyMapping[]; faculty: Faculty[] }) => {
     const { updateMapping, deleteMapping } = useAuth();
     const [isEditing, setIsEditing] = React.useState(false);
     const { toast } = useToast();
@@ -161,14 +163,14 @@ const ActionsCell = ({ mapping }: { mapping: ClassFacultyMapping; }) => {
                     <DialogTitle>Edit Mapping</DialogTitle>
                     <DialogDescription>Update this class-faculty mapping.</DialogDescription>
                 </DialogHeader>
-                <MappingForm mapping={mapping} onSave={handleEditSave} onCancel={() => setIsEditing(false)} />
+                <MappingForm mapping={mapping} onSave={handleEditSave} onCancel={() => setIsEditing(false)} mappings={mappings} faculty={faculty} />
             </DialogContent>
         </Dialog>
      </>
     );
 };
 
-const getColumns = (allFaculty: Faculty[]): ColumnDef<ClassFacultyMapping>[] => [
+const getColumns = (allFaculty: Faculty[], allMappings: ClassFacultyMapping[]): ColumnDef<ClassFacultyMapping>[] => [
   {
     accessorKey: "class_name",
     header: "Class Name",
@@ -187,16 +189,23 @@ const getColumns = (allFaculty: Faculty[]): ColumnDef<ClassFacultyMapping>[] => 
   },
   {
     id: "actions",
-    cell: ({ row }) => <ActionsCell mapping={row.original} />,
+    cell: ({ row }) => <ActionsCell mapping={row.original} mappings={allMappings} faculty={allFaculty} />,
   },
 ]
 
 export function ClassFacultyMappingTable({}: ClassFacultyMappingTableProps) {
-    const { mappings, faculty, addMapping } = useAuth();
+    const { addMapping } = useAuth();
+    const { firestore } = useFirebase();
+    const { data: mappings } = useCollection<ClassFacultyMapping>(collection(firestore, 'classFacultyMapping'));
+    const { data: faculty } = useCollection<Faculty>(collection(firestore, 'faculty'));
+
     const [isAdding, setIsAdding] = React.useState<boolean>(false);
     const { toast } = useToast();
     
-    const columns = React.useMemo(() => getColumns(faculty), [faculty]);
+    const allMappings = React.useMemo(() => mappings || [], [mappings]);
+    const allFaculty = React.useMemo(() => faculty || [], [faculty]);
+    
+    const columns = React.useMemo(() => getColumns(allFaculty, allMappings), [allFaculty, allMappings]);
 
     const handleAddSave = (data: Omit<ClassFacultyMapping, 'id'>) => {
         addMapping(data);
@@ -223,14 +232,14 @@ export function ClassFacultyMappingTable({}: ClassFacultyMappingTableProps) {
                             <DialogTitle>Add New Mapping</DialogTitle>
                             <DialogDescription>Create a new class-faculty assignment.</DialogDescription>
                         </DialogHeader>
-                        <MappingForm onSave={handleAddSave} onCancel={() => setIsAdding(false)}/>
+                        <MappingForm onSave={handleAddSave} onCancel={() => setIsAdding(false)} mappings={allMappings} faculty={allFaculty}/>
                     </DialogContent>
                 </Dialog>
             </div>
 
             <DataTable 
                 columns={columns} 
-                data={mappings}
+                data={allMappings}
                 filterColumn="class_name"
                 filterPlaceholder="Filter by class name..."
              />
@@ -238,5 +247,3 @@ export function ClassFacultyMappingTable({}: ClassFacultyMappingTableProps) {
     </Card>
   )
 }
-
-    

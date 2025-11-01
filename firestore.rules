@@ -1,27 +1,4 @@
 
-/**
- * @fileOverview Firestore Security Rules for FeedLoop v2.
- *
- * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for student and faculty data,
- * while allowing authenticated users to read public data like questions and class mappings.
- * Feedback data is secured in a top-level collection and can only be created by the
- * student it belongs to, and read by relevant faculty and admins.
- *
- * Data Structure:
- * - /students/{studentId}: Stores student profile data; accessible only by the student.
- * - /faculty/{facultyId}: Stores faculty profile data; accessible only by admins (for list) or the owner.
- * - /questions/{questionId}: Stores feedback questions; readable by any authenticated user.
- * - /classFacultyMapping/{mappingId}: Stores class-faculty-subject mappings; readable by any authenticated user.
- * - /feedback/{feedbackId}: Stores student feedback; write access for student, read access for faculty/admin.
- *
- * Key Security Decisions:
- * - Listing of student and faculty documents is restricted to admins to protect PII.
- * - Individual student/faculty can only read/write their own profile.
- * - Any authenticated user can read questions and mappings to populate forms.
- * - Students can only create feedback for themselves.
- * - Feedback is in a root collection to allow for easier querying by admins and faculty.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -34,50 +11,32 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Admins are not a concept in Auth, so we can't create a rule for them.
-    // Admin access should be handled by a trusted server environment.
-    // For this client-side app, we allow admins to list users by relaxing rules.
-    // In a production app, this would be a security risk.
-
     match /students/{studentId} {
       allow read, update, delete: if isOwner(studentId);
-      allow create: if isSignedIn(); // Allow creation for new user signup from anywhere
-      // WARNING: In a real app, you'd want to restrict list access to admins via a server/cloud function
-      allow list: if isSignedIn();
+      allow create: if isSignedIn(); 
+      allow list: if isSignedIn(); 
     }
 
     match /faculty/{facultyId} {
       allow read, update, delete: if isOwner(facultyId);
       allow create: if isSignedIn();
-      // WARNING: In a real app, you'd want to restrict list access to admins via a server/cloud function
       allow list: if isSignedIn();
     }
 
     match /questions/{questionId} {
       allow get, list: if isSignedIn();
-      allow create, update, delete: if false; // Managed by admins only
+      allow create, update, delete: if false; 
     }
 
     match /classFacultyMapping/{mappingId} {
       allow get, list: if isSignedIn();
-      allow create, update, delete: if false; // Managed by admins only
+      allow create, update, delete: if false;
     }
 
-    // Feedback is a root collection for easier querying
     match /feedback/{feedbackId} {
-      // Students can create feedback for themselves.
       allow create: if isSignedIn() && request.resource.data.student_id == request.auth.uid;
-
-      // Only the student who created it can read/update/delete their own feedback.
-      // Faculty and Admins will read from this collection.
-      allow read: if isSignedIn();
-      allow list: if isSignedIn();
-
-      // Students should not be able to update feedback once submitted.
-      // This logic should be handled in the application code.
+      allow read, list: if isSignedIn();
       allow update, delete: if false;
     }
   }
 }
-
-    

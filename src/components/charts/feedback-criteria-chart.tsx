@@ -2,26 +2,28 @@
 "use client"
 
 import { Bar, BarChart, CartesianGrid, XAxis, ResponsiveContainer, YAxis } from "recharts"
-import type { Feedback } from "@/lib/types";
-import { useAuth } from "@/hooks/use-auth";
-
+import type { Feedback, Question } from "@/lib/types";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
 import { useMemo } from "react";
+import { useCollection } from "@/firebase/firestore/use-collection";
+import { useFirebase } from "@/firebase/provider";
+import { collection } from "firebase/firestore";
 
 interface FeedbackCriteriaChartProps {
     feedback: Feedback[];
 }
 
 export function FeedbackCriteriaChart({ feedback }: FeedbackCriteriaChartProps) {
-  const { questions } = useAuth();
+  const { firestore } = useFirebase();
+  const { data: questions } = useCollection<Question>(collection(firestore, 'questions'));
 
   const chartData = useMemo(() => {
-    if (feedback.length === 0) {
-      return questions.map(q => ({ name: q.text, averageRating: 0, fill: "hsl(var(--muted))" }));
+    if (!questions || feedback.length === 0) {
+      return (questions || []).map(q => ({ name: q.text, averageRating: 0, fill: "hsl(var(--muted))" }));
     }
 
     const ratingSums: { [key: string]: { total: number; count: number } } = {};

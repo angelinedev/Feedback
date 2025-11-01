@@ -13,21 +13,35 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FeedbackCriteriaChart } from '@/components/charts/feedback-criteria-chart';
 import { ResponseRateChart } from '@/components/charts/response-rate-chart';
-import type { Faculty } from '@/lib/types';
+import type { Faculty, Student, ClassFacultyMapping, Feedback } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { KeyRound, TrendingUp } from 'lucide-react';
 import { ChangePasswordDialog } from '@/components/change-password-dialog';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { useFirebase } from '@/firebase/provider';
+import { collection, query, where } from 'firebase/firestore';
 
 
 export default function FacultyDashboard() {
-  const { user, students, mappings, feedback } = useAuth();
-  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
-  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const { user, changePassword } = useAuth();
+  const { firestore } = useFirebase();
 
   const faculty = user?.details as Faculty;
 
+  const mappingsQuery = useMemo(() => {
+    if (!firestore || !faculty?.faculty_id) return null;
+    return query(collection(firestore, 'classFacultyMapping'), where('faculty_id', '==', faculty.faculty_id));
+  }, [firestore, faculty?.faculty_id]);
+
+  const { data: mappings } = useCollection<ClassFacultyMapping>(mappingsQuery);
+  const { data: allFeedback } = useCollection<Feedback>(collection(firestore, 'feedback'));
+  const { data: allStudents } = useCollection<Student>(collection(firestore, 'students'));
+  
+  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+
   const assignedSubjects = useMemo(() => {
-    if (!faculty?.faculty_id) return [];
+    if (!faculty?.faculty_id || !mappings) return [];
     return mappings.filter(mapping => mapping.faculty_id === faculty.faculty_id);
   }, [faculty?.faculty_id, mappings]);
 
@@ -40,9 +54,9 @@ export default function FacultyDashboard() {
   });
 
   const cumulativeReport = useMemo(() => {
-    if (!faculty?.faculty_id || feedback.length === 0) return { average: 'N/A', count: 0 };
+    if (!faculty?.faculty_id || !allFeedback || allFeedback.length === 0) return { average: 'N/A', count: 0 };
     
-    const facultyFeedback = feedback.filter(f => f.faculty_id === faculty.faculty_id);
+    const facultyFeedback = allFeedback.filter(f => f.faculty_id === faculty.faculty_id);
     if(facultyFeedback.length === 0) return { average: 'N/A', count: 0 };
     
     let totalRating = 0;
@@ -58,7 +72,7 @@ export default function FacultyDashboard() {
     const average = ratingCount > 0 ? (totalRating / ratingCount).toFixed(2) : 'N/A';
     return { average, count: facultyFeedback.length };
 
-  }, [faculty?.faculty_id, feedback]);
+  }, [faculty?.faculty_id, allFeedback]);
 
   const selectedMapping = useMemo(() => {
     if (!selectedSubject) return null;
@@ -66,9 +80,9 @@ export default function FacultyDashboard() {
   }, [selectedSubject, assignedSubjects]);
 
   const feedbackForSubject = useMemo(() => {
-    if (!selectedMapping) return [];
-    return feedback.filter(f => f.faculty_id === selectedMapping.faculty_id && f.subject === selectedMapping.subject && f.class_name === selectedMapping.class_name);
-  }, [selectedMapping, feedback]);
+    if (!selectedMapping || !allFeedback) return [];
+    return allFeedback.filter(f => f.faculty_id === selectedMapping.faculty_id && f.subject === selectedMapping.subject && f.class_name === selectedMapping.class_name);
+  }, [selectedMapping, allFeedback]);
 
   const facultyScore = useMemo(() => {
       if(feedbackForSubject.length === 0) return 'N/A';
@@ -84,9 +98,9 @@ export default function FacultyDashboard() {
   }, [feedbackForSubject]);
   
   const totalStudentsInClass = useMemo(() => {
-    if (!selectedMapping) return 0;
-    return students.filter(s => s.class_name === selectedMapping.class_name).length;
-  }, [selectedMapping, students]);
+    if (!selectedMapping || !allStudents) return 0;
+    return allStudents.filter(s => s.class_name === selectedMapping.class_name).length;
+  }, [selectedMapping, allStudents]);
 
   const shuffledComments = useMemo(() => {
     return feedbackForSubject
@@ -209,5 +223,3 @@ export default function FacultyDashboard() {
     </div>
   );
 }
-
-    

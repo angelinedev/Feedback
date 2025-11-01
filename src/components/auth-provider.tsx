@@ -1,11 +1,10 @@
 
 "use client";
 
-import React, { createContext, useState, useContext, ReactNode, useMemo, useEffect } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import type { Student, Faculty, ClassFacultyMapping, Feedback, Question } from '@/lib/types';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { useFirestore } from '@/firebase';
+import { useFirebase } from '@/firebase/provider';
+import type { Student, Faculty, ClassFacultyMapping, Feedback, Question, Rating } from '@/lib/types';
 import { collection, doc, addDoc, updateDoc, deleteDoc, writeBatch, where, getDocs, query, DocumentData } from 'firebase/firestore';
 
 export type UserRole = 'admin' | 'student' | 'faculty';
@@ -18,44 +17,37 @@ export interface User {
 }
 
 interface AuthContextType {
-  students: Student[];
-  faculty: Faculty[];
-  mappings: ClassFacultyMapping[];
-  feedback: Feedback[];
-  questions: Question[];
-  loading: boolean;
-  addStudent: (student: Omit<Student, 'id' | 'password'>, password: string) => Promise<void>;
-  updateStudent: (id: string, data: Partial<Omit<Student, 'id'>>) => Promise<void>;
-  deleteStudent: (id: string) => Promise<void>;
-  updateStudentPassword: (id: string, newPass: string) => Promise<void>;
-  addFaculty: (faculty: Omit<Faculty, 'id' | 'password'>, password: string) => Promise<void>;
-  updateFaculty: (id: string, data: Partial<Omit<Faculty, 'id'>>) => Promise<void>;
-  deleteFaculty: (id: string) => Promise<void>;
-  updateFacultyPassword: (id: string, newPass: string) => Promise<void>;
-  addMapping: (mapping: Omit<ClassFacultyMapping, 'id'>) => Promise<void>;
-  updateMapping: (id: string, data: Partial<Omit<ClassFacultyMapping, 'id'>>) => Promise<void>;
-  deleteMapping: (id: string) => Promise<void>;
-  addFeedback: (feedback: Omit<Feedback, 'id'>, studentId: string) => Promise<void>;
-  addBulkStudents: (students: Omit<Student, 'id'>[]) => Promise<void>;
-  addBulkFaculty: (faculty: Omit<Faculty, 'id'>[]) => Promise<void>;
-  addBulkMappings: (mappings: Omit<ClassFacultyMapping, 'id'>[]) => Promise<void>;
   user: User | null;
   authLoading: boolean;
   login: (role: UserRole, id: string, pass: string) => Promise<boolean>;
   logout: () => void;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  addStudent: (student: Omit<Student, 'id' | 'password'>, password: string) => Promise<void>;
+  updateStudent: (id: string, data: Partial<Omit<Student, 'id'>>) => Promise<void>;
+  deleteStudent: (id: string) => Promise<void>;
+  addFaculty: (faculty: Omit<Faculty, 'id' | 'password'>, password: string) => Promise<void>;
+  updateFaculty: (id: string, data: Partial<Omit<Faculty, 'id'>>) => Promise<void>;
+  deleteFaculty: (id: string) => Promise<void>;
+  addMapping: (mapping: Omit<ClassFacultyMapping, 'id'>) => Promise<void>;
+  updateMapping: (id: string, data: Partial<Omit<ClassFacultyMapping, 'id'>>) => Promise<void>;
+  deleteMapping: (id: string) => Promise<void>;
+  addFeedback: (feedback: Omit<Feedback, 'id'>) => Promise<void>;
+  updateStudentPassword: (id: string, newPass: string) => Promise<void>;
+  updateFacultyPassword: (id: string, newPass: string) => Promise<void>;
+  addBulkStudents: (students: Omit<Student, 'id'>[]) => Promise<void>;
+  addBulkFaculty: (faculty: Omit<Faculty, 'id'>[]) => Promise<void>;
+  addBulkMappings: (mappings: Omit<ClassFacultyMapping, 'id'>[]) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const firestore = useFirestore();
+  const { firestore } = useFirebase();
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
 
-  // Auth logic
   useEffect(() => {
     const storedUser = localStorage.getItem('feedloop-user');
     if (storedUser) {
@@ -87,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, authLoading, pathname, router]);
 
   const findUserInFirestore = async (collectionName: string, idField: string, id: string, pass: string) => {
-    if(!firestore) return null;
+    if (!firestore) return null;
     const q = query(collection(firestore, collectionName), where(idField, '==', id));
     const querySnapshot = await getDocs(q);
     if (querySnapshot.empty) return null;
@@ -96,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const userData = userDoc.data() as DocumentData;
 
     if (userData.password === pass) {
-        return { ...userData, id: userDoc.id } as Student | Faculty;
+      return { ...userData, id: userDoc.id } as Student | Faculty;
     }
     return null;
   }
@@ -104,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (role: UserRole, id: string, pass: string): Promise<boolean> => {
     setAuthLoading(true);
     let foundUser: User | null = null;
-    
+
     if (role === 'admin') {
       if (id === 'admin' && pass === 'admin') {
         foundUser = { id: 'admin', name: 'Admin', role: 'admin', details: { id: 'admin', name: 'Admin' } };
@@ -150,29 +142,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const changePassword = async (currentPassword: string, newPassword: string) => {
-    if (!user) throw new Error("Not authenticated.");
+    if (!user || !firestore) throw new Error("Not authenticated.");
 
     let success = false;
-    let details: Student | Faculty;
 
-    if(user.role === 'student') {
-        details = user.details as Student;
-        if(details.password === currentPassword) {
-            await updateStudentPassword(details.id, newPassword);
-            success = true;
-        }
+    if (user.role === 'student') {
+      const details = user.details as Student;
+      const userRef = doc(firestore, 'students', details.id);
+      const userDoc = (await getDocs(query(collection(firestore, 'students'), where('register_number', '==', details.register_number)))).docs[0];
+      if (userDoc.data().password === currentPassword) {
+        await updateDoc(userRef, { password: newPassword });
+        success = true;
+      }
     } else if (user.role === 'faculty') {
-        details = user.details as Faculty;
-        if(details.password === currentPassword) {
-            await updateFacultyPassword(details.id, newPassword);
-            success = true;
-        }
+      const details = user.details as Faculty;
+      const userRef = doc(firestore, 'faculty', details.id);
+      const userDoc = (await getDocs(query(collection(firestore, 'faculty'), where('faculty_id', '==', details.faculty_id)))).docs[0];
+      if (userDoc.data().password === currentPassword) {
+        await updateDoc(userRef, { password: newPassword });
+        success = true;
+      }
     } else if (user.role === 'admin') {
-        throw new Error("Admin password cannot be changed in this version.");
+      throw new Error("Admin password cannot be changed in this version.");
     }
     
-    if(!success) {
-        throw new Error("Incorrect current password.");
+    if (!success) {
+      throw new Error("Incorrect current password.");
     } else {
         const updatedUser = {
             ...user,
@@ -182,71 +177,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('feedloop-user', JSON.stringify(updatedUser));
     }
   };
-
-
-  // Queries
-  const studentsQuery = useMemo(() => {
-    if (!firestore || user?.role !== 'admin') return null;
-    return collection(firestore, 'students');
-  }, [firestore, user]);
-
-  const facultyQuery = useMemo(() => {
-    if (!firestore || user?.role !== 'admin') return null;
-    return collection(firestore, 'faculty');
-  }, [firestore, user]);
-  
-  const mappingsQuery = useMemo(() => {
-    if (!firestore || !user) return null;
-    if(user.role === 'admin') return collection(firestore, 'classFacultyMapping');
-    if(user.role === 'student') return query(collection(firestore, 'classFacultyMapping'), where('class_name', '==', (user.details as Student).class_name));
-    if(user.role === 'faculty') return query(collection(firestore, 'classFacultyMapping'), where('faculty_id', '==', (user.details as Faculty).faculty_id));
-    return null;
-  }, [firestore, user]);
-
-  const questionsQuery = useMemo(() => {
-    if (!firestore || !user) return null;
-    return collection(firestore, 'questions');
-  }, [firestore, user]);
-  
-  const feedbackQuery = useMemo(() => {
-    if (!firestore || !user) return null;
-    if (user.role === 'admin' || user.role === 'faculty') return collection(firestore, 'feedback');
-    if (user.role === 'student') return query(collection(firestore, 'feedback'), where('student_id', '==', user.id));
-    return null;
-  }, [firestore, user]);
-
-  const { data: studentsData, isLoading: studentsLoading } = useCollection<Student>(studentsQuery);
-  const { data: facultyData, isLoading: facultyLoading } = useCollection<Faculty>(facultyQuery);
-  const { data: mappingsData, isLoading: mappingsLoading } = useCollection<ClassFacultyMapping>(mappingsQuery);
-  const { data: feedbackData, isLoading: feedbackLoading } = useCollection<Feedback>(feedbackQuery);
-  const { data: questionsData, isLoading: questionsLoading } = useCollection<Question>(questionsQuery);
-  
-  const [allFaculty, setAllFaculty] = useState<Faculty[]>([]);
-  
-  useEffect(() => {
-    async function fetchAllFaculty() {
-        if (!user || !firestore) return;
-        
-        if (user.role === 'student' || user.role === 'faculty') {
-            const facQuery = collection(firestore, 'faculty');
-            try {
-                const snapshot = await getDocs(facQuery);
-                const facultyList = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Faculty));
-                setAllFaculty(facultyList);
-            } catch(e) {
-                // This might fail if rules don't allow general listing, which is fine for students/faculty.
-                // We'll rely on admin-loaded data if direct fetching fails.
-                console.warn("Could not fetch all faculty directly. This is expected for non-admin users.");
-            }
-        } else if (user.role === 'admin') {
-            setAllFaculty(facultyData || []);
-        }
-    }
-    fetchAllFaculty();
-  }, [firestore, user, facultyData]);
-  
-
-  const loading = authLoading || studentsLoading || facultyLoading || mappingsLoading || feedbackLoading || questionsLoading;
   
   const addStudent = async (studentData: Omit<Student, 'id' | 'password'>, password: string) => {
     if(!firestore) return;
@@ -287,10 +217,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await deleteDoc(doc(firestore, 'classFacultyMapping', id));
   };
 
-  const addFeedback = async (feedbackData: Omit<Feedback, 'id'>, studentId: string) => {
+  const addFeedback = async (feedbackData: Omit<Feedback, 'id'>) => {
     if(!firestore) return;
-    const feedbackRef = collection(firestore, 'feedback');
-    await addDoc(feedbackRef, { ...feedbackData, student_id: studentId });
+    await addDoc(collection(firestore, 'feedback'), feedbackData);
   };
 
   const addBulk = async <T extends object>(collectionName: string, items: T[]) => {
@@ -304,41 +233,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await batch.commit();
   };
 
-  const addBulkStudents = async (students: Omit<Student, 'id'>[]) => addBulk('students', students);
-  const addBulkFaculty = async (faculty: Omit<Faculty, 'id'>[]) => addBulk('faculty', faculty);
-  const addBulkMappings = async (mappings: Omit<ClassFacultyMapping, 'id'>[]) => addBulk('classFacultyMapping', mappings);
-
-
+  const addBulkStudents = (d: Omit<Student, 'id'>[]) => addBulk('students', d);
+  const addBulkFaculty = (d: Omit<Faculty, 'id'>[]) => addBulk('faculty', d);
+  const addBulkMappings = (d: Omit<ClassFacultyMapping, 'id'>[]) => addBulk('classFacultyMapping', d);
+  
   const value: AuthContextType = {
-    students: studentsData || [],
-    faculty: user?.role === 'admin' ? (facultyData || []) : allFaculty,
-    mappings: mappingsData || [],
-    feedback: feedbackData || [],
-    questions: questionsData || [],
-    loading,
-    addStudent,
-    updateStudent,
-    deleteStudent,
-    updateStudentPassword,
-    addFaculty,
-    updateFaculty,
-    deleteFaculty,
-    updateFacultyPassword,
-    addMapping,
-    updateMapping,
-    deleteMapping,
-    addFeedback,
-    addBulkStudents,
-    addBulkFaculty,
-    addBulkMappings,
     user,
     authLoading,
     login,
     logout,
     changePassword,
+    addStudent,
+    updateStudent,
+    deleteStudent,
+    addFaculty,
+    updateFaculty,
+    deleteFaculty,
+    addMapping,
+    updateMapping,
+    deleteMapping,
+    addFeedback,
+    updateStudentPassword,
+    updateFacultyPassword,
+    addBulkStudents,
+    addBulkFaculty,
+    addBulkMappings,
   };
 
-  if(authLoading) {
+  if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
           <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4 animate-spin"></div>

@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import type { UserRole } from "./data-provider";
+import type { UserRole } from "./auth-provider";
 import { Loader2 } from "lucide-react";
 
 export default function LoginForm() {

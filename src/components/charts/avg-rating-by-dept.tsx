@@ -8,14 +8,17 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
-import { useAuth } from "@/hooks/use-auth";
 import { useMemo } from "react";
+import type { Feedback, Faculty } from "@/lib/types";
 
-export function AvgRatingByDeptChart() {
-  const { faculty, feedback } = useAuth();
+interface AvgRatingByDeptChartProps {
+  feedback: Feedback[];
+  faculty: Faculty[];
+}
 
+export function AvgRatingByDeptChart({ feedback, faculty }: AvgRatingByDeptChartProps) {
   const chartData = useMemo(() => {
-    if (feedback.length === 0 || faculty.length === 0) return [];
+    if (!feedback || feedback.length === 0 || !faculty || faculty.length === 0) return [];
 
     const ratingsByDept: { [key: string]: { total: number; count: number } } = {};
 

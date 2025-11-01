@@ -12,17 +12,27 @@ import { TrendChart } from "@/components/charts/trend-chart";
 import { FeedbackCriteriaChart } from '@/components/charts/feedback-criteria-chart';
 import { ResponseRateChart } from '@/components/charts/response-rate-chart';
 import { ClassFacultyRatingsChart } from '@/components/charts/class-faculty-ratings-chart';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { useFirebase } from '@/firebase/provider';
+import { collection } from 'firebase/firestore';
+import type { Student, Faculty, ClassFacultyMapping, Feedback } from '@/lib/types';
 
 
 export default function AdminDashboard() {
-  const { feedback, faculty, mappings, students } = useAuth();
+  const { firestore } = useFirebase();
+
+  const { data: feedback } = useCollection<Feedback>(collection(firestore, 'feedback'));
+  const { data: faculty } = useCollection<Faculty>(collection(firestore, 'faculty'));
+  const { data: mappings } = useCollection<ClassFacultyMapping>(collection(firestore, 'classFacultyMapping'));
+  const { data: students } = useCollection<Student>(collection(firestore, 'students'));
+  
   const [selectedFacultyId, setSelectedFacultyId] = useState<string | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [selectedClassName, setSelectedClassName] = useState<string | null>(null);
 
   // Memoize overall stats
   const { overallAverage, totalSubmissions } = useMemo(() => {
-    if (feedback.length === 0) {
+    if (!feedback || feedback.length === 0) {
       return { overallAverage: "N/A", totalSubmissions: 0 };
     }
     let totalRating = 0;
@@ -39,11 +49,11 @@ export default function AdminDashboard() {
   
   // Memoize data for the selected faculty view
   const selectedFaculty = useMemo(() => {
-    return faculty.find(f => f.faculty_id === selectedFacultyId) || null;
+    return faculty?.find(f => f.faculty_id === selectedFacultyId) || null;
   }, [selectedFacultyId, faculty]);
 
   const assignedSubjects = useMemo(() => {
-    if (!selectedFaculty) return [];
+    if (!selectedFaculty || !mappings) return [];
     return mappings.filter(mapping => mapping.faculty_id === selectedFaculty.faculty_id);
   }, [selectedFaculty, mappings]);
 
@@ -54,17 +64,17 @@ export default function AdminDashboard() {
   }, [selectedSubject, assignedSubjects]);
 
   const feedbackForSubject = useMemo(() => {
-    if (!selectedMapping) return [];
+    if (!selectedMapping || !feedback) return [];
     return feedback.filter(f => f.faculty_id === selectedMapping.faculty_id && f.subject === selectedMapping.subject && f.class_name === selectedMapping.class_name);
   }, [selectedMapping, feedback]);
 
   const totalStudentsInClass = useMemo(() => {
-    if (!selectedMapping) return 0;
+    if (!selectedMapping || !students) return 0;
     return students.filter(s => s.class_name === selectedMapping.class_name).length;
   }, [selectedMapping, students]);
 
   const shuffledComments = useMemo(() => {
-    return feedbackForSubject
+    return (feedbackForSubject || [])
       .map(f => f.comment)
       .filter((c): c is string => c !== null && c.trim() !== '')
       .sort(() => Math.random() - 0.5);
@@ -76,12 +86,13 @@ export default function AdminDashboard() {
   }
 
   const uniqueClassNames = useMemo(() => {
+    if (!mappings) return [];
     const classSet = new Set(mappings.map(m => m.class_name));
     return Array.from(classSet).sort();
   }, [mappings]);
 
   const facultyScoresForClass = useMemo(() => {
-    if (!selectedClassName) return [];
+    if (!selectedClassName || !feedback || !faculty) return [];
 
     const classFeedback = feedback.filter(fb => fb.class_name === selectedClassName);
     const ratingsByFaculty: { [key: string]: { total: number; count: number; name: string } } = {};
@@ -107,6 +118,9 @@ export default function AdminDashboard() {
 
   }, [selectedClassName, faculty, feedback]);
 
+  const facultyOptions = useMemo(() => faculty || [], [faculty]);
+  const allFeedback = useMemo(() => feedback || [], [feedback]);
+  const allStudents = useMemo(() => students || [], [students]);
 
   return (
     <>
@@ -153,7 +167,7 @@ export default function AdminDashboard() {
             <CardDescription>A comparative look at performance across departments.</CardDescription>
             </CardHeader>
             <CardContent>
-            <AvgRatingByDeptChart />
+            <AvgRatingByDeptChart feedback={allFeedback} faculty={facultyOptions} />
             </CardContent>
         </Card>
 
@@ -189,7 +203,7 @@ export default function AdminDashboard() {
                                     <CardTitle>Performance Chart</CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    <ClassFacultyRatingsChart className={selectedClassName} />
+                                    <ClassFacultyRatingsChart className={selectedClassName} feedback={allFeedback} faculty={facultyOptions} />
                                 </CardContent>
                             </Card>
                             <Card className="shadow-inner bg-muted/30">
@@ -232,7 +246,7 @@ export default function AdminDashboard() {
                             <SelectValue placeholder="Select a faculty member..." />
                         </SelectTrigger>
                         <SelectContent>
-                            {faculty.map(f => (
+                            {facultyOptions.map(f => (
                                 <SelectItem key={f.faculty_id} value={f.faculty_id}>{f.name} ({f.department})</SelectItem>
                             ))}
                         </SelectContent>
@@ -330,5 +344,3 @@ export default function AdminDashboard() {
     </>
   )
 }
-
-    

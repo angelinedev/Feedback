@@ -24,6 +24,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "../ui/input"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
 import { useAuth } from "@/hooks/use-auth"
+import { useCollection } from "@/firebase/firestore/use-collection"
+import { useFirebase } from "@/firebase/provider"
+import { collection } from "firebase/firestore"
 
 interface StudentTableProps {
 }
@@ -37,9 +40,9 @@ const studentSchema = z.object({
 });
 
 
-const StudentForm = ({ student, onSave, onCancel }: { student?: Student; onSave: (data: Omit<Student, 'id'>) => void; onCancel: () => void; }) => {
-    const { students } = useAuth();
-    const existingRegNumbers = React.useMemo(() => new Set(students.map(s => s.register_number)), [students]);
+const StudentForm = ({ student, onSave, onCancel, allStudents }: { student?: Student; onSave: (data: Omit<Student, 'id' | 'password'>, password?: string) => void; onCancel: () => void; allStudents: Student[] }) => {
+
+    const existingRegNumbers = React.useMemo(() => new Set(allStudents.map(s => s.register_number)), [allStudents]);
 
     const formSchema = studentSchema.extend({
         register_number: z.string().length(16, "Register number must be 16 digits.").refine(val => {
@@ -55,8 +58,8 @@ const StudentForm = ({ student, onSave, onCancel }: { student?: Student; onSave:
     });
 
     const onSubmit = (values: z.infer<typeof formSchema>) => {
-        const { id, ...data } = values;
-        onSave(data);
+        const { id, password, ...data } = values;
+        onSave(data, password);
     };
 
     return (
@@ -124,14 +127,13 @@ const StudentForm = ({ student, onSave, onCancel }: { student?: Student; onSave:
 };
 
 
-const ActionsCell = ({ student }: { student: Student; }) => {
+const ActionsCell = ({ student, allStudents }: { student: Student; allStudents: Student[] }) => {
     const { updateStudent, deleteStudent, updateStudentPassword } = useAuth();
     const [isEditing, setIsEditing] = React.useState(false);
     const { toast } = useToast();
 
-    const handleEditSave = async (data: Omit<Student, 'id'>) => {
-        const { password, ...updateData } = data;
-        await updateStudent(student.id, updateData);
+    const handleEditSave = async (data: Omit<Student, 'id' | 'password'>, password?: string) => {
+        await updateStudent(student.id, data);
         if(password) {
             await updateStudentPassword(student.id, password);
         }
@@ -168,14 +170,14 @@ const ActionsCell = ({ student }: { student: Student; }) => {
                     <DialogTitle>Edit Student</DialogTitle>
                     <DialogDescription>Update the details for this student.</DialogDescription>
                 </DialogHeader>
-                <StudentForm student={student} onSave={handleEditSave} onCancel={() => setIsEditing(false)} />
+                <StudentForm student={student} onSave={handleEditSave} onCancel={() => setIsEditing(false)} allStudents={allStudents} />
             </DialogContent>
         </Dialog>
         </>
     );
 };
 
-const getColumns = (): ColumnDef<Student>[] => [
+const getColumns = (allStudents: Student[]): ColumnDef<Student>[] => [
   {
     accessorKey: "register_number",
     header: "Register Number",
@@ -190,20 +192,27 @@ const getColumns = (): ColumnDef<Student>[] => [
   },
   {
     id: "actions",
-    cell: ({ row }) => <ActionsCell student={row.original} />,
+    cell: ({ row }) => <ActionsCell student={row.original} allStudents={allStudents} />,
   },
 ]
 
 export function StudentTable({}: StudentTableProps) {
-    const { students, addStudent } = useAuth();
+    const { addStudent } = useAuth();
+    const { firestore } = useFirebase();
+    const { data: students } = useCollection<Student>(collection(firestore, 'students'));
+
     const [isAdding, setIsAdding] = React.useState(false);
     const { toast } = useToast();
-    
-    const columns = React.useMemo(() => getColumns(), []);
 
-    const handleAddSave = async (data: Omit<Student, 'id'>) => {
-        const { password, ...studentData } = data;
-        await addStudent(studentData, password!);
+    const allStudents = React.useMemo(() => students || [], [students]);
+    const columns = React.useMemo(() => getColumns(allStudents), [allStudents]);
+
+    const handleAddSave = async (data: Omit<Student, 'id' | 'password'>, password?: string) => {
+        if (!password) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Password is required for new students.' });
+            return;
+        }
+        await addStudent(data, password);
         toast({ title: "Student Added", description: `${data.name} has been added.` });
         setIsAdding(false);
     };
@@ -227,13 +236,13 @@ export function StudentTable({}: StudentTableProps) {
                             <DialogTitle>Add New Student</DialogTitle>
                             <DialogDescription>Enter the details for the new student.</DialogDescription>
                         </DialogHeader>
-                        <StudentForm onSave={handleAddSave} onCancel={() => setIsAdding(false)} />
+                        <StudentForm onSave={handleAddSave} onCancel={() => setIsAdding(false)} allStudents={allStudents} />
                     </DialogContent>
                 </Dialog>
             </div>
             <DataTable 
                 columns={columns} 
-                data={students}
+                data={allStudents}
                 filterColumn="name"
                 filterPlaceholder="Filter by name..."
              />
@@ -241,5 +250,3 @@ export function StudentTable({}: StudentTableProps) {
     </Card>
   )
 }
-
-    

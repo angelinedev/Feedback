@@ -7,18 +7,19 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
-import { useAuth } from "@/hooks/use-auth";
 import { useMemo } from "react";
+import type { Feedback, Faculty } from "@/lib/types";
 
 interface ClassFacultyRatingsChartProps {
   className: string;
+  feedback: Feedback[];
+  faculty: Faculty[];
 }
 
-export function ClassFacultyRatingsChart({ className }: ClassFacultyRatingsChartProps) {
-  const { faculty, feedback } = useAuth();
+export function ClassFacultyRatingsChart({ className, feedback, faculty }: ClassFacultyRatingsChartProps) {
 
   const chartData = useMemo(() => {
-    if (!className || feedback.length === 0 || faculty.length === 0) return [];
+    if (!className || !feedback || feedback.length === 0 || !faculty || faculty.length === 0) return [];
 
     const classFeedback = feedback.filter(fb => fb.class_name === className);
 
