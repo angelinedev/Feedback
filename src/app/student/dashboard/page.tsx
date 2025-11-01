@@ -31,12 +31,12 @@ export default function StudentDashboard() {
   }, [firestore, student?.id]);
 
   const facultyQuery = useMemo(() => {
-    if (!firestore || !user ) return null;
+    if (!firestore || !user || user.role !== 'student') return null;
     return collection(firestore, 'faculty');
   }, [firestore, user]);
 
   const questionsQuery = useMemo(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !user || user.role !== 'student') return null;
     return collection(firestore, 'questions');
   }, [firestore, user]);
 
@@ -160,3 +160,4 @@ export default function StudentDashboard() {
   );
 }
 
+    

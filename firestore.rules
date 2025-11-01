@@ -9,15 +9,13 @@ service cloud.firestore {
     }
 
     match /students/{studentId} {
-      allow read, update, delete: if request.auth.uid == studentId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-      allow create: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-      allow list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow read, update: if request.auth.uid == studentId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow create, delete, list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
     match /faculty/{facultyId} {
       allow read: if isSignedIn();
-      allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-      allow list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow write, list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
     match /questions/{questionId} {
@@ -36,3 +34,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
