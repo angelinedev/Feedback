@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, {
@@ -101,7 +102,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!firestore) return;
+    if (!firestore || !user) return; // Only fetch data when user is logged in
+    
     const unsubStudents = onSnapshot(collection(firestore, 'students'), (snap) =>
       setStudents(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Student)))
     );
@@ -139,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       unsubFeedbacks();
       unsubQuestions();
     };
-  }, [firestore]);
+  }, [firestore, user]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -173,6 +175,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } else {
         setUser(null);
+        setStudents([]);
+        setFaculty([]);
+        setMappings([]);
+        setFeedbacks([]);
       }
       setAuthLoading(false);
     });
