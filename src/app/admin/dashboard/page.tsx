@@ -7,10 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 
-import { AvgRatingByDeptChart } from "@/components/charts/avg-rating-by-dept";
 import { FeedbackCriteriaChart } from '@/components/charts/feedback-criteria-chart';
 import { ResponseRateChart } from '@/components/charts/response-rate-chart';
-import { ClassFacultyRatingsChart } from '@/components/charts/class-faculty-ratings-chart';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useFirebase } from '@/firebase/provider';
 import { collection } from 'firebase/firestore';
@@ -48,7 +46,6 @@ export default function AdminDashboard() {
   
   const [selectedFacultyId, setSelectedFacultyId] = useState<string | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
-  const [selectedClassName, setSelectedClassName] = useState<string | null>(null);
 
   // Memoize overall stats
   const { overallAverage, totalSubmissions } = useMemo(() => {
@@ -105,42 +102,7 @@ export default function AdminDashboard() {
     setSelectedSubject(null); // Reset subject selection
   }
 
-  const uniqueClassNames = useMemo(() => {
-    if (!mappings) return [];
-    const classSet = new Set(mappings.map(m => m.class_name));
-    return Array.from(classSet).sort();
-  }, [mappings]);
-
-  const facultyScoresForClass = useMemo(() => {
-    if (!selectedClassName || !feedback || !faculty) return [];
-
-    const classFeedback = feedback.filter(fb => fb.class_name === selectedClassName);
-    const ratingsByFaculty: { [key: string]: { total: number; count: number; name: string } } = {};
-
-    classFeedback.forEach(fb => {
-      const facultyMember = faculty.find(f => f.faculty_id === fb.faculty_id);
-      if (!facultyMember) return;
-
-      if (!ratingsByFaculty[fb.faculty_id]) {
-        ratingsByFaculty[fb.faculty_id] = { total: 0, count: 0, name: facultyMember.name };
-      }
-
-      (fb.ratings || []).forEach(rating => {
-        ratingsByFaculty[fb.faculty_id].total += rating.rating;
-        ratingsByFaculty[fb.faculty_id].count += 1;
-      });
-    });
-
-    return Object.entries(ratingsByFaculty).map(([faculty_id, data]) => ({
-      facultyName: data.name,
-      score: data.count > 0 ? (data.total / data.count).toFixed(2) : 'N/A',
-    })).sort((a, b) => b.score.localeCompare(a.score));
-
-  }, [selectedClassName, faculty, feedback]);
-
   const facultyOptions = useMemo(() => faculty || [], [faculty]);
-  const allFeedback = useMemo(() => feedback || [], [feedback]);
-  const allStudents = useMemo(() => students || [], [students]);
 
   return (
     <>
@@ -178,76 +140,6 @@ export default function AdminDashboard() {
                 Across all departments
                 </div>
             </CardContent>
-            </Card>
-        </div>
-        
-        <Card className="shadow-2xl">
-            <CardHeader>
-            <CardTitle>Average Rating by Department</CardTitle>
-            <CardDescription>A comparative look at performance across departments.</CardDescription>
-            </CardHeader>
-            <CardContent>
-            <AvgRatingByDeptChart feedback={allFeedback} faculty={facultyOptions} />
-            </CardContent>
-        </Card>
-
-        {/* Class Drilldown Section */}
-        <div>
-            <h2 className="text-xl font-semibold mt-8 mb-4">Class-Specific View</h2>
-            <Card className="shadow-2xl">
-                <CardHeader>
-                    <CardTitle>Select a Class</CardTitle>
-                    <CardDescription>Choose a class to see a breakdown of faculty ratings within that class.</CardDescription>
-                    <div className="pt-4 max-w-sm">
-                        <Select onValueChange={setSelectedClassName} value={selectedClassName || ''}>
-                            <SelectTrigger className="shadow-lg">
-                                <SelectValue placeholder="Select a class..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {uniqueClassNames.map(name => (
-                                    <SelectItem key={name} value={name}>{name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </CardHeader>
-
-                {selectedClassName && (
-                    <CardContent>
-                        <Separator className="my-6" />
-                        <h3 className="text-lg font-semibold mb-2">Faculty Performance in {selectedClassName}</h3>
-                        <p className="text-muted-foreground mb-4">Average ratings for all subjects taught in this class.</p>
-                        <div className="grid gap-6 md:grid-cols-3">
-                            <Card className="md:col-span-2 shadow-inner bg-muted/30">
-                                <CardHeader>
-                                    <CardTitle>Performance Chart</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <ClassFacultyRatingsChart className={selectedClassName} feedback={allFeedback} faculty={facultyOptions} />
-                                </CardContent>
-                            </Card>
-                            <Card className="shadow-inner bg-muted/30">
-                                <CardHeader>
-                                    <CardTitle>Faculty Scores</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                     {facultyScoresForClass.length > 0 ? (
-                                        <ul className="space-y-3">
-                                            {facultyScoresForClass.map(faculty => (
-                                                <li key={faculty.facultyName} className="flex justify-between items-center text-sm">
-                                                    <span>{faculty.facultyName}</span>
-                                                    <span className="font-bold text-accent">{faculty.score}</span>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    ) : (
-                                        <p className="text-muted-foreground text-center">No scores to display.</p>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        </div>
-                    </CardContent>
-                )}
             </Card>
         </div>
         
@@ -352,5 +244,3 @@ export default function AdminDashboard() {
     </>
   )
 }
-
-    
