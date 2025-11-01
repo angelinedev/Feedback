@@ -55,7 +55,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Auth logic from AuthProvider
+  // Auth logic
   useEffect(() => {
     const storedUser = localStorage.getItem('feedloop-user');
     if (storedUser) {
@@ -222,7 +222,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   
   useEffect(() => {
     async function fetchAllFaculty() {
-      if (firestore && (user?.role === 'student' || user?.role === 'faculty')) {
+      if (firestore && user && (user.role === 'student' || user.role === 'faculty')) {
         const facQuery = collection(firestore, 'faculty');
         const snapshot = await getDocs(facQuery);
         const facultyList = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Faculty));
@@ -231,7 +231,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setAllFaculty(facultyData || []);
       }
     }
-    fetchAllFaculty();
+    if (user) {
+      fetchAllFaculty();
+    }
   }, [firestore, user, facultyData]);
   
 
@@ -345,3 +347,5 @@ export function useData() {
   }
   return context;
 }
+
+    
