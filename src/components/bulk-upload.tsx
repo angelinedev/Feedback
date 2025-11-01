@@ -9,9 +9,10 @@ import { useToast } from '@/hooks/use-toast';
 import { Upload, Users, Briefcase, BrainCircuit, Loader2 } from 'lucide-react';
 import { useData } from './data-provider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import type { Student, Faculty, ClassFacultyMapping } from '@/lib/types';
 
 export function BulkUpload() {
-  const { addStudent, addFaculty, addMapping, faculty: allFaculty, students: allStudents } = useData();
+  const { addBulkStudents, addBulkFaculty, addBulkMappings, students: allStudents, faculty: allFaculty } = useData();
   const { toast } = useToast();
   
   const [studentCsv, setStudentCsv] = useState('');
@@ -25,14 +26,12 @@ export function BulkUpload() {
   const processCsv = <T extends Record<string, string>>(
     csvText: string, 
     headers: (keyof T)[],
-    processor: (item: T) => boolean | void
-  ) => {
-    let addedCount = 0;
+  ): T[] => {
+    const results: T[] = [];
     const lines = csvText.split(/\r\n|\n/).filter(line => line.trim() !== '');
     
-    // Check headers of the pasted data
     const pastedHeaders = lines[0].split(',').map(h => h.trim());
-    const hasCorrectHeaders = headers.every((h, i) => pastedHeaders[i] === h);
+    const hasCorrectHeaders = headers.every((h, i) => pastedHeaders[i] === String(h));
 
     const dataLines = hasCorrectHeaders ? lines.slice(1) : lines;
 
@@ -44,33 +43,28 @@ export function BulkUpload() {
             acc[header] = values[index];
             return acc;
         }, {} as T);
-
-        if (processor(obj)) {
-          addedCount++;
-        }
+        results.push(obj);
     }
-    return addedCount;
+    return results;
   };
 
-  const handleStudentUpload = () => {
+  const handleStudentUpload = async () => {
     if (!studentCsv.trim()) return;
     setIsStudentLoading(true);
     try {
-      const existingRegNumbers = new Set(allStudents.map(s => s.register_number));
-      const headers = ['register_number', 'name', 'password', 'class_name'];
+      const headers: (keyof Student)[] = ['register_number', 'name', 'password', 'class_name'];
+      const newStudents = processCsv<any>(studentCsv, headers);
       
-      const count = processCsv(studentCsv, headers, (item: any) => {
-        if (item.register_number && item.name && item.password && item.class_name && !existingRegNumbers.has(item.register_number)) {
-          addStudent({ name: item.name, register_number: item.register_number, class_name: item.class_name }, item.password);
-          existingRegNumbers.add(item.register_number); // Add to set to handle duplicates within the same CSV
-          return true;
-        }
-        return false;
-      });
+      const existingRegNumbers = new Set(allStudents.map(s => s.register_number));
+      const validNewStudents = newStudents.filter(s => s.register_number && !existingRegNumbers.has(s.register_number));
+
+      if(validNewStudents.length > 0) {
+        await addBulkStudents(validNewStudents);
+      }
 
       toast({
         title: 'Upload Complete',
-        description: `Successfully processed and added ${count} new student(s).`,
+        description: `Successfully processed and added ${validNewStudents.length} new student(s). Skipped ${newStudents.length - validNewStudents.length} duplicates.`,
       });
       setStudentCsv('');
     } catch (e) {
@@ -80,25 +74,23 @@ export function BulkUpload() {
     }
   };
 
-  const handleFacultyUpload = () => {
+  const handleFacultyUpload = async () => {
     if (!facultyCsv.trim()) return;
     setIsFacultyLoading(true);
     try {
+       const headers: (keyof Faculty)[] = ['faculty_id', 'name', 'password', 'department'];
+       const newFaculty = processCsv<any>(facultyCsv, headers);
+
        const existingFacultyIds = new Set(allFaculty.map(f => f.faculty_id));
-       const headers = ['faculty_id', 'name', 'password', 'department'];
-
-       const count = processCsv(facultyCsv, headers, (item: any) => {
-         if (item.faculty_id && item.name && item.password && item.department && !existingFacultyIds.has(item.faculty_id)) {
-            addFaculty({ name: item.name, faculty_id: item.faculty_id, department: item.department }, item.password);
-            existingFacultyIds.add(item.faculty_id);
-            return true;
-         }
-         return false;
-       });
-
+       const validNewFaculty = newFaculty.filter(f => f.faculty_id && !existingFacultyIds.has(f.faculty_id));
+       
+       if(validNewFaculty.length > 0) {
+        await addBulkFaculty(validNewFaculty);
+       }
+       
       toast({
         title: 'Upload Complete',
-        description: `Successfully processed and added ${count} new faculty member(s).`,
+        description: `Successfully processed and added ${validNewFaculty.length} new faculty member(s). Skipped ${newFaculty.length - validNewFaculty.length} duplicates.`,
       });
       setFacultyCsv('');
     } catch (e) {
@@ -108,21 +100,21 @@ export function BulkUpload() {
     }
   };
 
-  const handleMappingUpload = () => {
+  const handleMappingUpload = async () => {
     if (!mappingCsv.trim()) return;
     setIsMappingLoading(true);
     try {
-       const headers = ['class_name', 'faculty_id', 'subject'];
-       const count = processCsv(mappingCsv, headers, (item: any) => {
-         if (item.class_name && item.faculty_id && item.subject) {
-            addMapping({ class_name: item.class_name, faculty_id: item.faculty_id, subject: item.subject });
-            return true;
-         }
-         return false;
-       });
+       const headers: (keyof ClassFacultyMapping)[] = ['class_name', 'faculty_id', 'subject'];
+       const newMappings = processCsv<any>(mappingCsv, headers);
+       const validNewMappings = newMappings.filter(m => m.class_name && m.faculty_id && m.subject);
+
+       if(validNewMappings.length > 0) {
+         await addBulkMappings(validNewMappings);
+       }
+       
       toast({
         title: 'Upload Complete',
-        description: `Successfully processed and added ${count} new mapping(s).`,
+        description: `Successfully processed and added ${validNewMappings.length} new mapping(s).`,
       });
       setMappingCsv('');
     } catch (e) {

@@ -129,11 +129,11 @@ const ActionsCell = ({ student }: { student: Student; }) => {
     const [isEditing, setIsEditing] = React.useState(false);
     const { toast } = useToast();
 
-    const handleEditSave = (data: Omit<Student, 'id'>) => {
+    const handleEditSave = async (data: Omit<Student, 'id'>) => {
         const { password, ...updateData } = data;
-        updateStudent(student.id, updateData);
+        await updateStudent(student.id, updateData);
         if(password) {
-            updateStudentPassword(student.id, password);
+            await updateStudentPassword(student.id, password);
         }
         toast({ title: "Student Updated", description: `${data.name} has been updated.` });
         setIsEditing(false);
@@ -201,9 +201,9 @@ export function StudentTable({}: StudentTableProps) {
     
     const columns = React.useMemo(() => getColumns(), []);
 
-    const handleAddSave = (data: Omit<Student, 'id'>) => {
+    const handleAddSave = async (data: Omit<Student, 'id'>) => {
         const { password, ...studentData } = data;
-        addStudent(studentData, password!);
+        await addStudent(studentData, password!);
         toast({ title: "Student Added", description: `${data.name} has been added.` });
         setIsAdding(false);
     };
@@ -241,5 +241,3 @@ export function StudentTable({}: StudentTableProps) {
     </Card>
   )
 }
-
-    

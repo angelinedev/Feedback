@@ -1,11 +1,12 @@
 
 "use client";
 
-import React, { createContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, useEffect, ReactNode, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import type { User as FirebaseUser } from 'firebase/auth'; // Keep type for eventual re-integration
-import { useData } from './data-provider';
+import { useFirestore } from '@/firebase';
+import { collection, query, where, getDocs, DocumentData } from 'firebase/firestore';
 import type { Student, Faculty } from '@/lib/types';
+import { useData } from './data-provider';
 
 export type UserRole = 'admin' | 'student' | 'faculty';
 
@@ -31,14 +32,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
-  const { students, faculty, updateStudentPassword, updateFacultyPassword } = useData();
+  const firestore = useFirestore();
+  const { updateStudentPassword, updateFacultyPassword } = useData();
 
   useEffect(() => {
     const storedUser = localStorage.getItem('feedloop-user');
     if (storedUser) {
       try {
         const parsedUser: User = JSON.parse(storedUser);
-        // Quick validation
         if (parsedUser.id && parsedUser.role && parsedUser.name) {
           setUser(parsedUser);
         }
@@ -64,6 +65,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   }, [user, loading, pathname, router]);
 
+  const findUserInFirestore = async (collectionName: string, idField: string, id: string, pass: string) => {
+    const q = query(collection(firestore, collectionName), where(idField, '==', id));
+    const querySnapshot = await getDocs(q);
+    if (querySnapshot.empty) return null;
+
+    const userDoc = querySnapshot.docs[0];
+    const userData = userDoc.data() as DocumentData;
+
+    if (userData.password === pass) {
+        return { ...userData, id: userDoc.id } as Student | Faculty;
+    }
+    return null;
+  }
+
   const login = async (role: UserRole, id: string, pass: string): Promise<boolean> => {
     setLoading(true);
     let foundUser: User | null = null;
@@ -73,12 +88,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         foundUser = { id: 'admin', name: 'Admin', role: 'admin', details: { id: 'admin', name: 'Admin' } };
       }
     } else if (role === 'student') {
-      const student = students.find(s => s.register_number === id && s.password === pass);
+      const student = await findUserInFirestore('students', 'register_number', id, pass) as Student;
       if (student) {
         foundUser = { id: student.id, name: student.name, role: 'student', details: student };
       }
     } else if (role === 'faculty') {
-      const facultyMember = faculty.find(f => f.faculty_id === id && f.password === pass);
+      const facultyMember = await findUserInFirestore('faculty', 'faculty_id', id, pass) as Faculty;
       if (facultyMember) {
         foundUser = { id: facultyMember.id, name: facultyMember.name, role: 'faculty', details: facultyMember };
       }
@@ -109,28 +124,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if(user.role === 'student') {
         const student = user.details as Student;
         if(student.password === currentPassword) {
-            updateStudentPassword(student.id, newPassword);
+            await updateStudentPassword(student.id, newPassword);
             success = true;
         }
     } else if (user.role === 'faculty') {
         const facultyMember = user.details as Faculty;
         if(facultyMember.password === currentPassword) {
-            updateFacultyPassword(facultyMember.id, newPassword);
+            await updateFacultyPassword(facultyMember.id, newPassword);
             success = true;
         }
     } else if (user.role === 'admin') {
-        // For simplicity, admin password change is not implemented with mock data
+        // For simplicity, admin password change is not implemented
         throw new Error("Admin password cannot be changed in this version.");
     }
     
     if(!success) {
         throw new Error("Incorrect current password.");
+    } else {
+        // Also update user in state and local storage
+        const updatedUser = {
+            ...user,
+            details: { ...user.details, password: newPassword }
+        };
+        setUser(updatedUser);
+        localStorage.setItem('feedloop-user', JSON.stringify(updatedUser));
     }
   };
 
   const value = { user, loading, login, logout, changePassword };
   
-  if(loading) {
+  if(loading && !user) { // Only show loader on initial load
     return (
       <div className="flex items-center justify-center min-h-screen">
           <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4 animate-spin"></div>
@@ -144,5 +167,3 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     </AuthContext.Provider>
   );
 }
-
-    

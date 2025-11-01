@@ -45,8 +45,7 @@ export default function StudentDashboard() {
 
   const handleFeedbackSubmit = (facultyId: string, subject: string, ratings: Rating[], comment: string) => {
     if (!student) return;
-    const newFeedback: Feedback = {
-      id: `fb-${Date.now()}`,
+    const newFeedback: Omit<Feedback, 'id'> = {
       student_id: student.id,
       faculty_id: facultyId,
       class_name: student.class_name,

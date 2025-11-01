@@ -238,5 +238,3 @@ export function ClassFacultyMappingTable({}: ClassFacultyMappingTableProps) {
     </Card>
   )
 }
-
-    

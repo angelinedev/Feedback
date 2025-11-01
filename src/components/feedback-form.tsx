@@ -28,11 +28,10 @@ export function FeedbackForm({ questions, facultyId, subject, onSubmit }: Feedba
   const ratingSchema = z.record(z.number().min(1, "Please provide a rating for every question."));
   
   const schema = z.object({
-    ratings: ratingSchema,
+    ratings: ratingSchema.refine(obj => Object.keys(obj).length === questions.length, "All questions must be rated."),
     comment: z.string().optional(),
   });
 
-  // Ensure all questions have a default rating of 0
   const defaultRatings = questions.reduce((acc, q) => {
     acc[q.id] = 0;
     return acc;
@@ -47,25 +46,29 @@ export function FeedbackForm({ questions, facultyId, subject, onSubmit }: Feedba
     mode: "onChange"
   });
 
-  const onFormSubmit = (data: z.infer<typeof schema>) => {
+  const onFormSubmit = async (data: z.infer<typeof schema>) => {
     setLoading(true);
     
-    // Convert ratings object to array
     const ratingsArray: Rating[] = Object.entries(data.ratings).map(([question_id, rating]) => ({
       question_id,
       rating,
     }));
     
-    // Simulate API call
-    setTimeout(() => {
-      console.log("Feedback submitted:", { facultyId, subject, ratings: ratingsArray, comment: data.comment });
-      toast({
-        title: "Feedback Submitted!",
-        description: "Thank you for your valuable input.",
-      });
-      onSubmit(facultyId, subject, ratingsArray, data.comment || "");
-      setLoading(false);
-    }, 1000);
+    try {
+        await onSubmit(facultyId, subject, ratingsArray, data.comment || "");
+        toast({
+            title: "Feedback Submitted!",
+            description: "Thank you for your valuable input.",
+        });
+    } catch(e) {
+        toast({
+            variant: "destructive",
+            title: "Submission Failed",
+            description: "Could not submit your feedback. Please try again.",
+        });
+    } finally {
+        setLoading(false);
+    }
   };
   
   return (

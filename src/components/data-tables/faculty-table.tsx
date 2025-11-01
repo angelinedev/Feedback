@@ -127,11 +127,11 @@ const ActionsCell = ({ faculty }: { faculty: Faculty; }) => {
     const [isEditing, setIsEditing] = React.useState(false);
     const { toast } = useToast();
     
-    const handleEditSave = (data: Omit<Faculty, 'id'>) => {
+    const handleEditSave = async (data: Omit<Faculty, 'id'>) => {
         const { password, ...updateData } = data;
-        updateFaculty(faculty.id, updateData);
+        await updateFaculty(faculty.id, updateData);
         if(password) {
-            updateFacultyPassword(faculty.id, password);
+            await updateFacultyPassword(faculty.id, password);
         }
         toast({ title: "Faculty Updated", description: `${data.name} has been updated.` });
         setIsEditing(false);
@@ -199,9 +199,9 @@ export function FacultyTable({}: FacultyTableProps) {
     
     const columns = React.useMemo(() => getColumns(), []);
 
-    const handleAddSave = (data: Omit<Faculty, 'id'>) => {
+    const handleAddSave = async (data: Omit<Faculty, 'id'>) => {
         const { password, ...facultyData } = data;
-        addFaculty(facultyData, password!);
+        await addFaculty(facultyData, password!);
         toast({ title: "Faculty Added", description: `${data.name} has been added.` });
         setIsAdding(false);
     };
@@ -239,5 +239,3 @@ export function FacultyTable({}: FacultyTableProps) {
     </Card>
   )
 }
-
-    
