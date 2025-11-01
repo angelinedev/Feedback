@@ -124,7 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       collection(firestore, 'feedback'),
       (snap) =>
         setFeedbacks(
-          snap.docs.map((d) => ({ id: d.id, ...d.data(), submitted_at: d.data().submitted_at.toDate() } as Feedback))
+          snap.docs.map((d) => ({ id: d.id, ...d.data(), submitted_at: d.data().submitted_at?.toDate() } as Feedback))
         )
     );
     const unsubQuestions = onSnapshot(
@@ -156,6 +156,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [firestore, user]);
 
   useEffect(() => {
+    if(!auth || !firestore) {
+        setAuthLoading(false);
+        return;
+    };
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         const userDoc = await getDoc(doc(firestore, 'users', firebaseUser.uid));
@@ -189,6 +193,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             role,
             details,
           });
+        } else {
+            // This can happen if the user exists in Auth but not in Firestore, e.g., during setup
+            setUser(null);
         }
       } else {
         setUser(null);
@@ -210,7 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!user && !pathIsPublic) {
       router.push('/');
-    } else if (user && (pathIsPublic && pathname !== '/setup-admin')) {
+    } else if (user && (pathIsPublic || pathname.startsWith('/setup-admin'))) { // Redirect away from setup if logged in
       router.push(`/${user.role}/dashboard`);
     }
   }, [user, authLoading, pathname, router]);
@@ -221,6 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     pass: string
   ): Promise<boolean> => {
     try {
+      if (!auth) throw new Error("Auth not initialized");
       const email =
         role === 'admin'
           ? 'admin@feedloop.com'
@@ -236,6 +244,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    if (!auth) return;
     await auth.signOut();
     setUser(null);
     router.push('/');
@@ -245,6 +254,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     currentPassword: string,
     newPassword: string
   ) => {
+    if (!auth) throw new Error("Auth not initialized");
     const firebaseUser = auth.currentUser;
     if (!firebaseUser || !firebaseUser.email) throw new Error('Not authenticated');
 
@@ -257,9 +267,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
   
     const addStudent = async (studentData: Omit<Student, 'id' | 'password'>, password: string) => {
+        if (!auth || !firestore) throw new Error("Firebase not initialized");
         const email = `${studentData.register_number}@student.jce.com`;
-        // In a real-world scenario, you would use a backend function to create users.
-        // The following is not secure for a production app but is fine for this prototype.
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const uid = userCredential.user.uid;
         
@@ -271,6 +280,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const updateStudent = async (id: string, data: Partial<Omit<Student, 'id'>>) => {
+        if (!firestore) throw new Error("Firebase not initialized");
         await setDoc(doc(firestore, "students", id), data, { merge: true });
         if(data.name){
            await setDoc(doc(firestore, "users", id), { name: data.name }, { merge: true });
@@ -278,12 +288,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const deleteStudent = async (id: string) => {
+        if (!firestore) throw new Error("Firebase not initialized");
         // This is complex due to auth. For now, we just delete the doc. A backend function is needed for production.
         await deleteDoc(doc(firestore, "students", id));
         await deleteDoc(doc(firestore, "users", id));
     };
 
     const addFaculty = async (facultyData: Omit<Faculty, 'id' | 'password'>, password: string) => {
+        if (!auth || !firestore) throw new Error("Firebase not initialized");
         const email = `${facultyData.faculty_id}@faculty.jce.com`;
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const uid = userCredential.user.uid;
@@ -296,6 +308,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const updateFaculty = async (id: string, data: Partial<Omit<Faculty, 'id'>>) => {
+        if (!firestore) throw new Error("Firebase not initialized");
         await setDoc(doc(firestore, "faculty", id), data, { merge: true });
         if(data.name){
            await setDoc(doc(firestore, "users", id), { name: data.name }, { merge: true });
@@ -303,26 +316,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     
     const deleteFaculty = async (id: string) => {
+        if (!firestore) throw new Error("Firebase not initialized");
         await deleteDoc(doc(firestore, "faculty", id));
         await deleteDoc(doc(firestore, "users", id));
     };
 
     const addMapping = async (mappingData: Omit<ClassFacultyMapping, 'id'>) => {
+        if (!firestore) throw new Error("Firebase not initialized");
         const newMappingRef = doc(collection(firestore, "classFacultyMapping"));
         await setDoc(newMappingRef, { ...mappingData, id: newMappingRef.id });
     };
 
     const updateMapping = async (id: string, data: Partial<Omit<ClassFacultyMapping, 'id'>>) => {
+        if (!firestore) throw new Error("Firebase not initialized");
         await setDoc(doc(firestore, "classFacultyMapping", id), data, { merge: true });
     };
 
     const deleteMapping = async (id: string) => {
+        if (!firestore) throw new Error("Firebase not initialized");
         await deleteDoc(doc(firestore, "classFacultyMapping", id));
     };
 
 
 
     const addFeedback = async (feedbackData: Omit<Feedback, 'id'>) => {
+        if (!firestore) throw new Error("Firebase not initialized");
         await addDoc(collection(firestore, "feedback"), { ...feedbackData, submitted_at: new Date() });
     };
 
@@ -351,6 +369,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const addBulkMappings = async (newMappings: Omit<ClassFacultyMapping, 'id'>[]) => {
+        if (!firestore) throw new Error("Firebase not initialized");
         const batch = writeBatch(firestore);
         newMappings.forEach(m => {
             const newMappingRef = doc(collection(firestore, "classFacultyMapping"));

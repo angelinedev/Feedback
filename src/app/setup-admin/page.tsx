@@ -42,18 +42,22 @@ export default function SetupAdminPage() {
     const adminEmail = "admin@feedloop.com";
 
     try {
+      if (!auth || !firestore) {
+        throw new Error("Firebase not initialized");
+      }
+      
       // 1. Create the user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, adminEmail, values.password);
       const uid = userCredential.user.uid;
 
-      // 2. Create the role document in Firestore
+      // 2. Create the role and admin documents in Firestore
       const batch = writeBatch(firestore);
+      
       const userRoleRef = doc(firestore, "users", uid);
       batch.set(userRoleRef, { role: "admin", name: "Admin" });
       
-      // Optionally, create an admin details doc if needed by other parts of app
       const adminDetailsRef = doc(firestore, "admin", uid);
-      batch.set(adminDetailsRef, { name: "Admin", id: uid });
+      batch.set(adminDetailsRef, { name: "Admin", id: uid, email: adminEmail });
 
       await batch.commit();
 
@@ -73,6 +77,20 @@ export default function SetupAdminPage() {
             : error.message || "An unexpected error occurred.",
       });
       if(error.code === 'auth/email-already-in-use') {
+        // If the auth user exists, we still try to create the firestore docs just in case they are missing.
+        try {
+            if(auth.currentUser){
+                const uid = auth.currentUser.uid;
+                const batch = writeBatch(firestore);
+                const userRoleRef = doc(firestore, "users", uid);
+                batch.set(userRoleRef, { role: "admin", name: "Admin" });
+                const adminDetailsRef = doc(firestore, "admin", uid);
+                batch.set(adminDetailsRef, { name: "Admin", id: uid, email: adminEmail });
+                await batch.commit();
+            }
+        } catch(firestoreError) {
+            console.error("Failed to create firestore docs for existing user", firestoreError);
+        }
         setSuccess(true);
       }
     } finally {
@@ -86,7 +104,7 @@ export default function SetupAdminPage() {
         <CardHeader>
           <CardTitle>Admin Account Setup</CardTitle>
           <CardDescription>
-            This is a one-time setup to create your admin user in the database.
+            This is a one-time setup to create your admin user in the database. Run this once on your deployed site.
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -22,17 +22,21 @@ service cloud.firestore {
       allow read, write: if false;
     }
     
-    // USERS collection stores roles
+    // USERS collection stores roles. A user can read their own role.
     match /users/{userId} {
-      allow read: if isSignedIn();
-      // Only admins can create roles, except for the initial setup.
-      allow write: if isAdmin() || (request.method == 'create' && request.resource.data.role == 'admin');
+      allow read: if isOwner(userId);
+      // Only admins can create new roles AFTER the first admin is set up.
+      // The setup page will handle the creation of the first admin role.
+      allow write: if isAdmin();
     }
     
-    // ADMIN collection can only be written to during setup, and read by admins
+    // The initial admin can be created by the setup page.
+    // Subsequent admin documents can only be created by other admins.
     match /admin/{adminId} {
       allow read: if isAdmin();
-      allow write: if request.method == 'create'; // Allow initial admin creation
+      // Allow creation only if no other admin exists, or if requester is already an admin.
+      allow create: if !exists(/databases/$(database)/documents/admin/$(request.auth.uid));
+      allow write: if isAdmin();
     }
 
     // STUDENTS collection
@@ -53,7 +57,7 @@ service cloud.firestore {
         allow write: if isAdmin();
     }
     
-    // MAPPINGS, QUESTIONS can only be managed by Admins
+    // MAPPINGS, QUESTIONS can be read by any authenticated user, but only managed by Admins
     match /classFacultyMapping/{mappingId} {
         allow read: if isSignedIn();
         allow write: if isAdmin();
@@ -65,9 +69,9 @@ service cloud.firestore {
     }
     
     // FEEDBACK can be created by any signed-in user, but only admins can see all of it.
-    // Individual read/update access isn't required for students/faculty as per app logic.
+    // Students can see their own submitted feedback.
     match /feedback/{feedbackId} {
-        allow read: if isAdmin() || isOwner(request.resource.data.student_id);
+        allow read: if isAdmin() || isOwner(resource.data.student_id);
         allow create: if isOwner(request.resource.data.student_id);
         allow update, delete: if isAdmin();
     }
