@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, {
@@ -90,7 +89,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { auth, firestore, areServicesAvailable } = useFirebase();
+  const { auth, firestore } = useFirebase();
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [students, setStudents] = useState<Student[]>([]);
@@ -156,47 +155,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [firestore, user]);
 
   useEffect(() => {
-    if(!areServicesAvailable) {
+    if(!auth || !firestore) {
         setAuthLoading(false);
         return;
     };
-    if(!auth || !firestore) return;
+    
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const userDocRef = doc(firestore, 'users', firebaseUser.uid);
-        const userDoc = await getDoc(userDocRef);
+        const adminDocRef = doc(firestore, 'admin', firebaseUser.uid);
+        const adminDoc = await getDoc(adminDocRef);
 
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          const role = userData.role as UserRole;
-          let details: any;
-          let name: string = userData.name || "User";
-
-          if (role === 'admin') {
-              details = { id: firebaseUser.uid, name: "Admin" };
-              name = "Admin";
-          } else if (role === 'student') {
-            const studentDoc = await getDoc(doc(firestore, 'students', firebaseUser.uid));
-            details = { id: studentDoc.id, ...studentDoc.data() };
-            name = details.name;
-          } else if (role === 'faculty') {
-            const facultyDoc = await getDoc(doc(firestore, 'faculty', firebaseUser.uid));
-            details = { id: facultyDoc.id, ...facultyDoc.data() };
-            name = details.name;
-          }
-
-          setUser({ id: firebaseUser.uid, name, role, details });
+        if (adminDoc.exists()) {
+            setUser({
+                id: firebaseUser.uid,
+                name: 'Admin',
+                role: 'admin',
+                details: { id: firebaseUser.uid, name: 'Admin' }
+            });
         } else {
-            // Fallback for admin if user doc doesn't exist for some reason
-            const adminDoc = await getDoc(doc(firestore, 'admin', firebaseUser.uid));
-            if (adminDoc.exists()) {
-                setUser({
-                    id: firebaseUser.uid,
-                    name: 'Admin',
-                    role: 'admin',
-                    details: { id: firebaseUser.uid, name: 'Admin' }
-                });
+            // Not an admin, check for student or faculty
+            const userDocRef = doc(firestore, 'users', firebaseUser.uid);
+            const userDoc = await getDoc(userDocRef);
+
+            if (userDoc.exists()) {
+                const userData = userDoc.data();
+                const role = userData.role as UserRole;
+                let details: any;
+                let name: string = userData.name || "User";
+
+                if (role === 'student') {
+                    const studentDoc = await getDoc(doc(firestore, 'students', firebaseUser.uid));
+                    details = { id: studentDoc.id, ...studentDoc.data() };
+                    name = details.name;
+                } else if (role === 'faculty') {
+                    const facultyDoc = await getDoc(doc(firestore, 'faculty', firebaseUser.uid));
+                    details = { id: facultyDoc.id, ...facultyDoc.data() };
+                    name = details.name;
+                }
+                setUser({ id: firebaseUser.uid, name, role, details });
             } else {
+                // User exists in auth but not in any role collection
                 setUser(null);
             }
         }
@@ -210,7 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAuthLoading(false);
     });
     return () => unsubscribe();
-  }, [auth, firestore, areServicesAvailable]);
+  }, [auth, firestore]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -433,5 +431,3 @@ export function useAuth() {
   }
   return context;
 }
-
-    
