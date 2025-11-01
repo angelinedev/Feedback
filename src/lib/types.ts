@@ -5,6 +5,7 @@ export interface Student {
   id: string;
   register_number: string;
   name: string;
+  email: string;
   class_name: string;
   password?: string; // Optional because we don't always want to expose it
 }
@@ -13,6 +14,7 @@ export interface Faculty {
   id: string;
   faculty_id: string;
   name:string;
+  email: string;
   department: string;
   password?: string; // Optional
 }

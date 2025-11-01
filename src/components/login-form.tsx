@@ -33,16 +33,17 @@ export default function LoginForm() {
     setLoading(true);
 
     const formData = new FormData(event.currentTarget);
-    const id = formData.get("id") as string;
+    const email = formData.get("email") as string;
     const password = formData.get("password") as string;
     
     try {
-      const success = await login(activeTab, id, password);
+      // The role is taken from the activeTab state
+      const success = await login(activeTab, email, password);
       if (!success) {
         toast({
           variant: "destructive",
           title: "Login Failed",
-          description: "Invalid credentials. Please check your ID and password.",
+          description: "Invalid credentials. Please check your email and password.",
         });
       }
     } catch (error) {
@@ -57,28 +58,11 @@ export default function LoginForm() {
   };
 
   const renderFormFields = (role: UserRole) => {
-    let idLabel = "ID";
-    let idPlaceholder = "Enter your ID";
-    let idType = "text";
-    let idValue: string | undefined = undefined;
-    
-    if (role === "admin") {
-      idLabel = "Admin ID"
-      idPlaceholder = "admin"
-      idValue="admin"
-    } else if (role === "student") {
-      idLabel = "Register Number";
-      idPlaceholder = "16-digit register number";
-    } else if (role === "faculty") {
-      idLabel = "Faculty ID";
-      idPlaceholder = "3-4 digit faculty ID";
-    }
-
     return (
       <form onSubmit={handleSubmit} className="grid gap-4">
         <div className="grid gap-2">
-          <Label htmlFor={`${role}-id`}>{idLabel}</Label>
-          <Input id={`${role}-id`} name="id" type={idType} placeholder={idPlaceholder} required defaultValue={idValue} readOnly={role === 'admin'} />
+          <Label htmlFor={`${role}-email`}>Email</Label>
+          <Input id={`${role}-email`} name="email" type="email" placeholder="Enter your email" required />
         </div>
         <div className="grid gap-2">
           <Label htmlFor={`${role}-password`}>Password</Label>

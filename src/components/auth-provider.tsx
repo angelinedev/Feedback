@@ -50,7 +50,7 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   authLoading: boolean;
-  login: (role: UserRole, id: string, pass: string) => Promise<boolean>;
+  login: (role: UserRole, email: string, pass: string) => Promise<boolean>;
   logout: () => void;
   changePassword: (
     currentPassword: string,
@@ -103,35 +103,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!firestore || !user) return; // Only fetch data when user is logged in
-    
-    const unsubStudents = onSnapshot(collection(firestore, 'students'), (snap) =>
-      setStudents(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Student)))
-    );
-    const unsubFaculty = onSnapshot(collection(firestore, 'faculty'), (snap) =>
-      setFaculty(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Faculty)))
-    );
-    const unsubMappings = onSnapshot(
-      collection(firestore, 'classFacultyMapping'),
-      (snap) =>
-        setMappings(
-          snap.docs.map(
-            (d) => ({ id: d.id, ...d.data() } as ClassFacultyMapping)
-          )
-        )
-    );
-    const unsubFeedbacks = onSnapshot(
-      collection(firestore, 'feedback'),
-      (snap) =>
-        setFeedbacks(
-          snap.docs.map((d) => ({ id: d.id, ...d.data(), submitted_at: d.data().submitted_at?.toDate() } as Feedback))
-        )
-    );
+    if (!firestore) return;
+
     const unsubQuestions = onSnapshot(
       collection(firestore, 'questions'),
       (snap) => {
-        if(snap.empty) {
-          // Seed questions if empty
+        if (snap.empty) {
           const batch = writeBatch(firestore);
           mockQuestions.forEach(q => {
             const qRef = doc(firestore, "questions", q.id);
@@ -139,20 +116,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
           batch.commit();
         } else {
-           setQuestions(
+          setQuestions(
             snap.docs.map((d) => ({ id: d.id, ...d.data() } as Question))
-          )
+          );
         }
       }
     );
 
-    return () => {
-      unsubStudents();
-      unsubFaculty();
-      unsubMappings();
-      unsubFeedbacks();
-      unsubQuestions();
+    return () => unsubQuestions();
+  }, [firestore]);
+
+
+  useEffect(() => {
+    if (!firestore || !user) {
+        setStudents([]);
+        setFaculty([]);
+        setMappings([]);
+        setFeedbacks([]);
+        return;
     };
+
+    if (user.role === 'admin') {
+      const unsubStudents = onSnapshot(collection(firestore, 'students'), (snap) =>
+        setStudents(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Student)))
+      );
+      const unsubFaculty = onSnapshot(collection(firestore, 'faculty'), (snap) =>
+        setFaculty(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Faculty)))
+      );
+      const unsubMappings = onSnapshot(collection(firestore, 'classFacultyMapping'), (snap) =>
+        setMappings(snap.docs.map((d) => ({ id: d.id, ...d.data() } as ClassFacultyMapping)))
+      );
+      const unsubFeedbacks = onSnapshot(collection(firestore, 'feedback'), (snap) =>
+        setFeedbacks(snap.docs.map((d) => ({ id: d.id, ...d.data(), submitted_at: d.data().submitted_at?.toDate() } as Feedback)))
+      );
+      return () => { unsubStudents(); unsubFaculty(); unsubMappings(); unsubFeedbacks(); };
+    } else if (user.role === 'student' || user.role === 'faculty') {
+       const unsubFaculty = onSnapshot(collection(firestore, 'faculty'), (snap) =>
+        setFaculty(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Faculty)))
+      );
+      const unsubMappings = onSnapshot(collection(firestore, 'classFacultyMapping'), (snap) =>
+        setMappings(snap.docs.map((d) => ({ id: d.id, ...d.data() } as ClassFacultyMapping)))
+      );
+      const unsubFeedbacks = onSnapshot(collection(firestore, 'feedback'), (snap) =>
+        setFeedbacks(snap.docs.map((d) => ({ id: d.id, ...d.data(), submitted_at: d.data().submitted_at?.toDate() } as Feedback)))
+      );
+      return () => { unsubFaculty(); unsubMappings(); unsubFeedbacks(); };
+    }
+
+
   }, [firestore, user]);
 
   useEffect(() => {
@@ -173,42 +184,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             let name: string = userData.name || "User";
 
             if (role === 'admin') {
-                details = { id: firebaseUser.uid, name: 'Admin' };
-                name = 'Admin';
+                const adminDoc = await getDoc(doc(firestore, 'admin', firebaseUser.uid));
+                if (adminDoc.exists()) {
+                    details = { id: adminDoc.id, ...adminDoc.data() };
+                    name = details.name;
+                }
             } else if (role === 'student') {
                 const studentDoc = await getDoc(doc(firestore, 'students', firebaseUser.uid));
-                details = { id: studentDoc.id, ...studentDoc.data() };
-                name = details.name;
+                 if (studentDoc.exists()) {
+                    details = { id: studentDoc.id, ...studentDoc.data() };
+                    name = details.name;
+                }
             } else if (role === 'faculty') {
                 const facultyDoc = await getDoc(doc(firestore, 'faculty', firebaseUser.uid));
-                details = { id: facultyDoc.id, ...facultyDoc.data() };
-                name = details.name;
+                if (facultyDoc.exists()) {
+                    details = { id: facultyDoc.id, ...facultyDoc.data() };
+                    name = details.name;
+                }
             }
-            setUser({ id: firebaseUser.uid, name, role, details });
-        } else {
-            // This case can happen right after user creation and before the Firestore doc is written.
-            // Or if the user doc was deleted.
-            // Check if they are an admin as a fallback.
-            const adminDocRef = doc(firestore, 'admin', firebaseUser.uid);
-            const adminDoc = await getDoc(adminDocRef);
-
-            if (adminDoc.exists()) {
-                setUser({
-                    id: firebaseUser.uid,
-                    name: 'Admin',
-                    role: 'admin',
-                    details: { id: firebaseUser.uid, name: 'Admin' }
-                });
+            if (details) {
+                setUser({ id: firebaseUser.uid, name, role, details });
             } else {
-                 setUser(null);
+                 setUser(null); // Document for role does not exist
             }
+        } else {
+             setUser(null);
         }
       } else {
         setUser(null);
-        setStudents([]);
-        setFaculty([]);
-        setMappings([]);
-        setFeedbacks([]);
       }
       setAuthLoading(false);
     });
@@ -223,34 +226,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!user && !pathIsPublic) {
       router.push('/');
-    } else if (user && (pathIsPublic || pathname.startsWith('/setup-admin'))) { // Redirect away from setup if logged in
+    } else if (user && (pathIsPublic || pathname.startsWith('/setup-admin'))) { 
       router.push(`/${user.role}/dashboard`);
     }
   }, [user, authLoading, pathname, router]);
 
   const login = async (
     role: UserRole,
-    id: string,
+    email: string,
     pass: string
   ): Promise<boolean> => {
     try {
       if (!auth) throw new Error("Auth not initialized");
-      let email: string;
-      switch (role) {
-        case 'admin':
-          email = 'admin@feedloop.com';
-          break;
-        case 'student':
-          email = `${id}@student.jce.com`;
-          break;
-        case 'faculty':
-          email = `${id}@faculty.jce.com`;
-          break;
-        default:
-          throw new Error('Invalid role specified for login');
-      }
+      
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
-      return !!userCredential.user;
+      
+      if(userCredential.user) {
+         if (!firestore) throw new Error("Firestore not initialized");
+         const userDoc = await getDoc(doc(firestore, 'users', userCredential.user.uid));
+         if(userDoc.exists() && userDoc.data().role === role) {
+             return true;
+         } else {
+             await auth.signOut(); // Role doesn't match, sign out immediately.
+             return false;
+         }
+      }
+      return false;
     } catch (error) {
       console.error('Login failed:', error);
       return false;
@@ -282,8 +283,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
     const addStudent = async (studentData: Omit<Student, 'id' | 'password'>, password: string) => {
         if (!auth || !firestore) throw new Error("Firebase not initialized");
-        const email = `${studentData.register_number}@student.jce.com`;
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(auth, studentData.email, password);
         const uid = userCredential.user.uid;
         
         const batch = writeBatch(firestore);
@@ -291,6 +291,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         batch.set(doc(firestore, "users", uid), { role: "student", name: studentData.name });
         
         await batch.commit();
+        await auth.signOut(); // Sign out to not keep the new user logged in
     };
 
     const updateStudent = async (id: string, data: Partial<Omit<Student, 'id'>>) => {
@@ -310,8 +311,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const addFaculty = async (facultyData: Omit<Faculty, 'id' | 'password'>, password: string) => {
         if (!auth || !firestore) throw new Error("Firebase not initialized");
-        const email = `${facultyData.faculty_id}@faculty.jce.com`;
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(auth, facultyData.email, password);
         const uid = userCredential.user.uid;
         
         const batch = writeBatch(firestore);
@@ -319,6 +319,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         batch.set(doc(firestore, "users", uid), { role: "faculty", name: facultyData.name });
 
         await batch.commit();
+        await auth.signOut(); // Sign out to not keep the new user logged in
     };
 
     const updateFaculty = async (id: string, data: Partial<Omit<Faculty, 'id'>>) => {
@@ -351,33 +352,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await deleteDoc(doc(firestore, "classFacultyMapping", id));
     };
 
-
-
     const addFeedback = async (feedbackData: Omit<Feedback, 'id'>) => {
         if (!firestore) throw new Error("Firebase not initialized");
         await addDoc(collection(firestore, "feedback"), { ...feedbackData, submitted_at: new Date() });
     };
 
     const addBulkStudents = async (newStudents: Omit<Student, 'id'>[]) => {
-      // This function cannot create auth users from the client-side securely in a batch.
-      // This is a simplified version for the prototype. In production, this MUST be a backend/admin function.
       for(const s of newStudents) {
-         if(!s.password) continue;
+         if(!s.password || !s.email) continue;
          try {
             await addStudent(s, s.password);
          } catch (e) {
-             console.error(`Skipping student ${s.register_number}, likely already exists.`, e)
+             console.error(`Skipping student ${s.email}, likely already exists.`, e)
          }
       }
     };
   
     const addBulkFaculty = async (newFaculty: Omit<Faculty, 'id'>[]) => {
       for(const f of newFaculty) {
-        if(!f.password) continue;
+        if(!f.password || !f.email) continue;
         try {
            await addFaculty(f, f.password);
         } catch (e) {
-             console.error(`Skipping faculty ${f.faculty_id}, likely already exists.`, e)
+             console.error(`Skipping faculty ${f.email}, likely already exists.`, e)
         }
       }
     };

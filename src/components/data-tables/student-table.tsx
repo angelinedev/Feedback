@@ -24,7 +24,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "../ui/input"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
 import { useAuth } from "@/components/auth-provider"
-import { BulkUpload } from "../bulk-upload"
 
 interface StudentTableProps {
 }
@@ -33,6 +32,7 @@ const studentSchema = z.object({
     id: z.string().optional(),
     register_number: z.string().length(16, "Register number must be 16 digits."),
     name: z.string().min(1, "Name is required."),
+    email: z.string().email("Invalid email address."),
     class_name: z.string().min(1, "Class name is required."),
     password: z.string().min(6, "Password must be at least 6 characters."),
 });
@@ -40,19 +40,24 @@ const studentSchema = z.object({
 
 const StudentForm = ({ student, onSave, onCancel, allStudents }: { student?: Student; onSave: (data: Omit<Student, 'id' | 'password'>, password?: string) => void; onCancel: () => void; allStudents: Student[] }) => {
 
+    const existingEmails = React.useMemo(() => new Set(allStudents.map(s => s.email)), [allStudents]);
     const existingRegNumbers = React.useMemo(() => new Set(allStudents.map(s => s.register_number)), [allStudents]);
 
     const formSchema = studentSchema.extend({
         register_number: z.string().length(16, "Register number must be 16 digits.").refine(val => {
-            if (student?.register_number === val) return true; // allow saving with the same number
+            if (student?.register_number === val) return true;
             return !existingRegNumbers.has(val);
         }, "This register number already exists."),
+        email: z.string().email("Invalid email address.").refine(val => {
+            if (student?.email === val) return true;
+            return !existingEmails.has(val);
+        }, "This email already exists."),
          password: student ? z.string().optional().refine(val => !val || val.length >= 6, "New password must be at least 6 characters.") : z.string().min(6, "Password must be at least 6 characters."),
     });
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
-        defaultValues: student ? { ...student, password: "" } : { register_number: "", name: "", class_name: "", password: "" },
+        defaultValues: student ? { ...student, password: "" } : { register_number: "", name: "", email: "", class_name: "", password: "" },
     });
 
     const onSubmit = (values: z.infer<typeof formSchema>) => {
@@ -70,7 +75,20 @@ const StudentForm = ({ student, onSave, onCancel, allStudents }: { student?: Stu
                         <FormItem>
                             <FormLabel>Register Number</FormLabel>
                             <FormControl>
-                                <Input placeholder="16-digit register number" {...field} disabled={!!student} />
+                                <Input placeholder="16-digit register number" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                 <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                                <Input type="email" placeholder="Student's email address" {...field} disabled={!!student}/>
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -109,7 +127,7 @@ const StudentForm = ({ student, onSave, onCancel, allStudents }: { student?: Stu
                         <FormItem>
                             <FormLabel>Password</FormLabel>
                             <FormControl>
-                                <Input type="password" placeholder={student ? "Leave blank to keep current password" : "Set a password"} {...field} />
+                                <Input type="password" placeholder={student ? "Leave blank to keep current password" : "Set an initial password"} {...field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -132,7 +150,7 @@ const ActionsCell = ({ student, allStudents }: { student: Student; allStudents: 
 
     const handleEditSave = async (data: Omit<Student, 'id' | 'password'>, password?: string) => {
         if(password){
-             alert("Password changes for existing users should be done via a dedicated 'reset password' flow. This dialog only sets initial passwords.");
+             alert("Password changes for existing users should be done via the 'Change Password' feature by the user or a password reset flow. This dialog only sets initial passwords.");
         }
         await updateStudent(student.id, data);
         toast({ title: "Student Updated", description: `${data.name} has been updated.` });
@@ -183,6 +201,10 @@ const getColumns = (allStudents: Student[]): ColumnDef<Student>[] => [
   {
     accessorKey: "name",
     header: "Name",
+  },
+  {
+    accessorKey: "email",
+    header: "Email",
   },
   {
     accessorKey: "class_name",

@@ -24,7 +24,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
 import { Input } from "../ui/input"
 import { useAuth } from "@/components/auth-provider"
-import { BulkUpload } from "../bulk-upload"
 
 interface FacultyTableProps {
 }
@@ -33,6 +32,7 @@ const facultySchema = z.object({
     id: z.string().optional(),
     faculty_id: z.string().min(3, "ID must be at least 3 digits").max(4, "ID must be at most 4 digits"),
     name: z.string().min(1, "Name is required."),
+    email: z.string().email("Invalid email address."),
     department: z.string().min(1, "Department is required."),
     password: z.string().min(6, "Password must be at least 6 characters."),
 });
@@ -40,18 +40,23 @@ const facultySchema = z.object({
 const FacultyForm = ({ faculty, onSave, onCancel, allFaculty }: { faculty?: Faculty; onSave: (data: Omit<Faculty, 'id' | 'password'>, password?: string) => void; onCancel: () => void; allFaculty: Faculty[] }) => {
     
     const existingFacultyIds = React.useMemo(() => new Set(allFaculty.map(f => f.faculty_id)), [allFaculty]);
+    const existingEmails = React.useMemo(() => new Set(allFaculty.map(f => f.email)), [allFaculty]);
 
     const formSchema = facultySchema.extend({
         faculty_id: z.string().min(3, "ID must be at least 3 digits").max(4, "ID must be at most 4 digits").refine(val => {
             if (faculty?.faculty_id === val) return true;
             return !existingFacultyIds.has(val);
         }, "This Faculty ID already exists."),
+        email: z.string().email("Invalid email address.").refine(val => {
+            if (faculty?.email === val) return true;
+            return !existingEmails.has(val);
+        }, "This email already exists."),
         password: faculty ? z.string().optional().refine(val => !val || val.length >= 6, "New password must be at least 6 characters.") : z.string().min(6, "Password must be at least 6 characters."),
     });
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
-        defaultValues: faculty ? { ...faculty, password: "" } : { faculty_id: "", name: "", department: "", password: "" },
+        defaultValues: faculty ? { ...faculty, password: "" } : { faculty_id: "", name: "", email: "", department: "", password: "" },
     });
 
     const onSubmit = (values: z.infer<typeof formSchema>) => {
@@ -69,7 +74,20 @@ const FacultyForm = ({ faculty, onSave, onCancel, allFaculty }: { faculty?: Facu
                         <FormItem>
                             <FormLabel>Faculty ID</FormLabel>
                             <FormControl>
-                                <Input placeholder="3-4 digit ID" {...field} disabled={!!faculty} />
+                                <Input placeholder="3-4 digit ID" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                 <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                                <Input type="email" placeholder="Faculty member's email" {...field} disabled={!!faculty}/>
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -108,7 +126,7 @@ const FacultyForm = ({ faculty, onSave, onCancel, allFaculty }: { faculty?: Facu
                         <FormItem>
                             <FormLabel>Password</FormLabel>
                             <FormControl>
-                                <Input type="password" placeholder={faculty ? "Leave blank to keep current password" : "Set a password"} {...field} />
+                                <Input type="password" placeholder={faculty ? "Leave blank to keep current password" : "Set an initial password"} {...field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -129,10 +147,8 @@ const ActionsCell = ({ faculty, allFaculty }: { faculty: Faculty; allFaculty: Fa
     const { toast } = useToast();
     
     const handleEditSave = async (data: Omit<Faculty, 'id' | 'password'>, password?: string) => {
-        // In a real app with proper auth, you might need a way to re-auth or use a different method.
-        // For this mock setup, we just update the data. We won't handle password changes here for simplicity.
         if (password) {
-            alert("Password changes for existing users should be done via a dedicated 'reset password' flow. This dialog only sets initial passwords.");
+            alert("Password changes for existing users should be done via the 'Change Password' feature by the user or a password reset flow. This dialog only sets initial passwords.");
         }
         await updateFaculty(faculty.id, data);
         toast({ title: "Faculty Updated", description: `${data.name} has been updated.` });
@@ -183,6 +199,10 @@ const getColumns = (allFaculty: Faculty[]): ColumnDef<Faculty>[] => [
   {
     accessorKey: "name",
     header: "Name",
+  },
+  {
+    accessorKey: "email",
+    header: "Email",
   },
   {
     accessorKey: "department",

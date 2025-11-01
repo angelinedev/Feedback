@@ -23,16 +23,16 @@ export function BulkUpload({ type }: BulkUploadProps) {
   const config = {
     students: {
         title: "Bulk Add Students",
-        description: "Paste CSV data. Required columns: `register_number`, `name`, `password`, `class_name`.",
-        placeholder: "register_number,name,password,class_name\n1111222233334444,John Doe,password123,CS-A",
-        headers: ['register_number', 'name', 'password', 'class_name'],
+        description: "Paste CSV data. Required columns: `register_number`, `name`, `email`, `password`, `class_name`.",
+        placeholder: "register_number,name,email,password,class_name\n1111222233334444,John Doe,john.doe@example.com,password123,CS-A",
+        headers: ['register_number', 'name', 'email', 'password', 'class_name'],
         handler: handleStudentUpload,
     },
     faculty: {
         title: "Bulk Add Faculty",
-        description: "Paste CSV data. Required columns: `faculty_id`, `name`, `password`, `department`.",
-        placeholder: "faculty_id,name,password,department\n123,Jane Smith,pass456,Computer Science",
-        headers: ['faculty_id', 'name', 'password', 'department'],
+        description: "Paste CSV data. Required columns: `faculty_id`, `name`, `email`, `password`, `department`.",
+        placeholder: "faculty_id,name,email,password,department\n123,Jane Smith,jane.smith@example.com,pass456,Computer Science",
+        headers: ['faculty_id', 'name', 'email', 'password', 'department'],
         handler: handleFacultyUpload,
     },
     mappings: {
@@ -91,7 +91,7 @@ export function BulkUpload({ type }: BulkUploadProps) {
 
       toast({
         title: 'Upload Complete',
-        description: `Processed ${newStudents.length} student records.`,
+        description: `Processed ${newStudents.length} student records. Note: It may take a moment for new users to appear.`,
       });
       setCsvData('');
     } catch (e: any) {
@@ -115,7 +115,7 @@ export function BulkUpload({ type }: BulkUploadProps) {
        
       toast({
         title: 'Upload Complete',
-        description: `Processed ${newFaculty.length} faculty records.`,
+        description: `Processed ${newFaculty.length} faculty records. Note: It may take a moment for new users to appear.`,
       });
       setCsvData('');
     } catch (e: any) {
