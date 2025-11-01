@@ -62,7 +62,7 @@ export function BulkUpload() {
     if (!studentCsv.trim()) return;
     setIsStudentLoading(true);
     try {
-      const headers: (keyof Student)[] = ['register_number', 'name', 'password', 'class_name'];
+      const headers: (keyof Omit<Student, 'id'>)[] = ['register_number', 'name', 'password', 'class_name'];
       const newStudents = processCsv<any>(studentCsv, headers);
       
       const existingRegNumbers = new Set(allStudents.map(s => s.register_number));
@@ -88,7 +88,7 @@ export function BulkUpload() {
     if (!facultyCsv.trim()) return;
     setIsFacultyLoading(true);
     try {
-       const headers: (keyof Faculty)[] = ['faculty_id', 'name', 'password', 'department'];
+       const headers: (keyof Omit<Faculty, 'id'>)[] = ['faculty_id', 'name', 'password', 'department'];
        const newFaculty = processCsv<any>(facultyCsv, headers);
 
        const existingFacultyIds = new Set(allFaculty.map(f => f.faculty_id));
@@ -114,7 +114,7 @@ export function BulkUpload() {
     if (!mappingCsv.trim()) return;
     setIsMappingLoading(true);
     try {
-       const headers: (keyof ClassFacultyMapping)[] = ['class_name', 'faculty_id', 'subject'];
+       const headers: (keyof Omit<ClassFacultyMapping, 'id'>)[] = ['class_name', 'faculty_id', 'subject'];
        const newMappings = processCsv<any>(mappingCsv, headers);
        const validNewMappings = newMappings.filter(m => m.class_name && m.faculty_id && m.subject);
 

@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -15,8 +16,9 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { DataTable } from "./data-table"
 import type { Question } from "@/lib/types"
-import { mockQuestions } from "@/lib/mock-data"
-
+import { useCollection } from "@/firebase/firestore/use-collection"
+import { useFirebase } from "@/firebase/provider"
+import { collection } from "firebase/firestore"
 
 const ActionsCell = ({ question }: { question: Question }) => {
     // Add logic for Edit/Delete here
@@ -56,7 +58,10 @@ const columns: ColumnDef<Question>[] = [
 ]
 
 export function QuestionsTable() {
-    const [data, setData] = React.useState<Question[]>(mockQuestions);
+    const { firestore } = useFirebase();
+    const { data: questions } = useCollection<Question>(collection(firestore, 'questions'));
+    
+    const data = React.useMemo(() => questions || [], [questions]);
 
     const handleAdd = () => {
         alert("Opening form to add new question...")

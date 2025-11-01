@@ -62,7 +62,7 @@ export default function StudentDashboard() {
 
   const handleFeedbackSubmit = (facultyId: string, subject: string, ratings: Rating[], comment: string) => {
     if (!student) return;
-    const newFeedback: Omit<Feedback, 'id'> = {
+    const newFeedback: Omit<Feedback, 'id' | 'submitted_at'> = {
       student_id: student.id,
       faculty_id: facultyId,
       class_name: student.class_name,
@@ -70,9 +70,8 @@ export default function StudentDashboard() {
       ratings: ratings,
       comment: comment,
       semester: 'Spring 2024', // This could be dynamic in a real app
-      submitted_at: new Date(),
     };
-    addFeedback(newFeedback);
+    addFeedback(newFeedback as any); // Type assertion to satisfy function signature
     setSelectedMapping(null);
   };
   

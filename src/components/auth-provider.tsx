@@ -1,12 +1,11 @@
 
 "use client";
 
-import React, { createContext, useState, useContext, ReactNode, useEffect, useMemo } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useFirebase } from '@/firebase/provider';
-import type { Student, Faculty, ClassFacultyMapping, Feedback, Question, Rating } from '@/lib/types';
+import type { Student, Faculty, Feedback, ClassFacultyMapping } from '@/lib/types';
 import { collection, doc, addDoc, updateDoc, deleteDoc, writeBatch, where, getDocs, query, DocumentData } from 'firebase/firestore';
-import { useCollection } from '@/firebase/firestore/use-collection';
 
 export type UserRole = 'admin' | 'student' | 'faculty';
 
@@ -20,12 +19,6 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   authLoading: boolean;
-  students: Student[];
-  faculty: Faculty[];
-  mappings: ClassFacultyMapping[];
-  feedback: Feedback[];
-  questions: Question[];
-  dataLoading: boolean;
   login: (role: UserRole, id: string, pass: string) => Promise<boolean>;
   logout: () => void;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
@@ -84,46 +77,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
   }, [user, authLoading, pathname, router]);
-
-  // --- Data Fetching ---
-  const studentsQuery = useMemo(() => {
-    if (!firestore || !user || user.role !== 'admin') return null;
-    return collection(firestore, 'students');
-  }, [firestore, user]);
-
-  const facultyQuery = useMemo(() => {
-      if (!firestore || !user) return null;
-      return collection(firestore, 'faculty');
-  }, [firestore, user]);
-  
-  const mappingsQuery = useMemo(() => {
-    if (!firestore || !user) return null;
-    if (user.role === 'admin') return collection(firestore, 'classFacultyMapping');
-    if (user.role === 'student') return query(collection(firestore, 'classFacultyMapping'), where('class_name', '==', (user.details as Student).class_name));
-    if (user.role === 'faculty') return query(collection(firestore, 'classFacultyMapping'), where('faculty_id', '==', (user.details as Faculty).faculty_id));
-    return null;
-  }, [firestore, user]);
-
-  const questionsQuery = useMemo(() => {
-    if (!firestore || !user) return null;
-    return collection(firestore, 'questions');
-  }, [firestore, user]);
-  
-  const feedbackQuery = useMemo(() => {
-    if (!firestore || !user) return null;
-    if (user.role === 'admin' || user.role === 'faculty') return collection(firestore, 'feedback');
-    if (user.role === 'student') return query(collection(firestore, 'feedback'), where('student_id', '==', user.id));
-    return null;
-  }, [firestore, user]);
-
-  const { data: studentsData, isLoading: studentsLoading } = useCollection<Student>(studentsQuery);
-  const { data: facultyData, isLoading: facultyLoading } = useCollection<Faculty>(facultyQuery);
-  const { data: mappingsData, isLoading: mappingsLoading } = useCollection<ClassFacultyMapping>(mappingsQuery);
-  const { data: feedbackData, isLoading: feedbackLoading } = useCollection<Feedback>(feedbackQuery);
-  const { data: questionsData, isLoading: questionsLoading } = useCollection<Question>(questionsQuery);
-  
-  const dataLoading = authLoading || studentsLoading || facultyLoading || mappingsLoading || feedbackLoading || questionsLoading;
-
 
   const findUserInFirestore = async (collectionName: string, idField: string, id: string, pass: string) => {
     if (!firestore) return null;
@@ -294,12 +247,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthContextType = {
     user,
     authLoading,
-    students: studentsData || [],
-    faculty: facultyData || [],
-    mappings: mappingsData || [],
-    feedback: feedbackData || [],
-    questions: questionsData || [],
-    dataLoading,
     login,
     logout,
     changePassword,
@@ -338,5 +285,3 @@ export function useAuthContext() {
   }
   return context;
 }
-
-    
