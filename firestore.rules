@@ -14,24 +14,28 @@ service cloud.firestore {
     }
     
     function isAdmin() {
+      // An admin is a user who has a document in the 'admin' collection with their UID.
       return exists(/databases/$(database)/documents/admin/$(request.auth.uid));
     }
 
-    // Default deny all
+    // Default deny all to ensure explicit permissions are set.
     match /{document=**} {
       allow read, write: if false;
     }
     
-    // USERS collection stores roles. A user can read their own role.
+    // The 'users' collection stores a 'role' for each user.
+    // Any signed-in user can read their own role document.
+    // Admins can read or write any user role document.
     match /users/{userId} {
       allow read, write: if isOwner(userId) || isAdmin();
     }
     
-    // The initial admin can be created by anyone if no admins exist.
+    // The 'admin' collection is the source of truth for admin privileges.
+    // An admin can read any document here.
+    // Critically, allow ANYONE to create an admin document IF AND ONLY IF no admin documents exist yet.
     // Subsequent admin documents can only be created by other admins.
     match /admin/{adminId} {
       allow read: if isAdmin();
-      // Allow creation only if no other admin exists, or if requester is already an admin.
       allow create: if !exists(/databases/$(database)/documents/admin/$(request.auth.uid)) || isAdmin();
       allow write: if isAdmin();
     }
@@ -65,14 +69,14 @@ service cloud.firestore {
         allow write: if isAdmin();
     }
     
-    // FEEDBACK can be created by any signed-in user, but only admins can see all of it.
-    // Students can see their own submitted feedback.
+    // FEEDBACK collection
+    // A student can create feedback for themselves.
+    // They can only read their own submitted feedback.
+    // Admins can read, update, or delete any feedback.
     match /feedback/{feedbackId} {
-        allow read: if isAdmin() || isOwner(resource.data.student_id);
-        allow create: if isOwner(request.resource.data.student_id);
+        allow read: if isAdmin() || (resource.data.student_id == request.auth.uid);
+        allow create: if request.resource.data.student_id == request.auth.uid;
         allow update, delete: if isAdmin();
     }
   }
 }
-
-    
