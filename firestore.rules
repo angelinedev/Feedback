@@ -1,71 +1,116 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper functions
+    // --- Helper Functions ---
+    // User must be authenticated
     function isSignedIn() {
       return request.auth != null;
     }
     
+    // User's UID matches the document ID they are trying to access
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
     
+    // User must have a document in the 'admin' collection keyed by their UID
     function isAdmin() {
-      return exists(/databases/$(database)/documents/admin/$(request.auth.uid));
+      return isSignedIn() && exists(/databases/$(database)/documents/admin/$(request.auth.uid));
     }
     
+    // Used primarily for bootstrapping the first admin user
     function noAdminsExist() {
+      // NOTE: Checking if a collection is truly empty is complex. This helper
+      // relies on your first admin being created when the 'admin' collection
+      // has no documents yet.
       return !exists(/databases/$(database)/documents/admin);
     }
 
-    match /{document=**} {
-      allow read, write: if false;
-    }
-    
+    // ------------------------------------
+    // 1. /users/{userId} - General user details (Optional profile data)
+    // ------------------------------------
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
-      allow write: if isAdmin();
-      allow create: if (noAdminsExist() && request.resource.data.role == 'admin') || isAdmin() || request.auth.uid == userId;
+      // Read: Owner can read their own profile OR Admin can read any profile
+      allow read: if isOwner(userId) || isAdmin(); 
+      // Write: Only Admin can update a user's details
+      allow write: if isAdmin(); 
+      // Create: Allow if it's the first admin setup, or if Admin is creating, or user creating their own.
+      allow create: if (noAdminsExist() && request.resource.data.role == 'admin') || isAdmin() || isOwner(userId);
     }
     
+    // ------------------------------------
+    // 2. /admin/{adminId} - The Admin Role Marker
+    // ------------------------------------
     match /admin/{adminId} {
+      // Read: Only an existing Admin can read this list
       allow read: if isAdmin();
-      allow create: if noAdminsExist() || isAdmin();
-      allow write: if isAdmin();
+      // Write/Create: Only the first user (if no admin exists) OR an existing Admin can create/update
+      allow create, write: if noAdminsExist() || isAdmin();
     }
 
+    // ------------------------------------
+    // 3. /students/{studentId} - Student records
+    // ------------------------------------
     match /students/{studentId} {
-        allow read: if isAdmin(); 
-        allow get: if isOwner(studentId) || isAdmin(); 
-        allow update, write: if isAdmin();
-        allow create: if isAdmin();
+        // List: Only Admin can view the list of all students.
+        allow list: if isAdmin();
+        // Get: Student can get their own document, or Admin can get any document.
+        allow get: if isOwner(studentId) || isAdmin();
+        // Update/Write/Create: Only the Admin can manage the student records.
+        allow update, write, create: if isAdmin();
     }
     
+    // ------------------------------------
+    // 4. /faculty/{facultyId} - Faculty records
+    // ------------------------------------
     match /faculty/{facultyId} {
+        // Read: Any signed-in user can read faculty list (e.g., to select one for feedback)
         allow read: if isSignedIn(); 
-        allow update, write: if isAdmin();
-        allow create: if isAdmin();
+        // Update/Write/Create: Only the Admin can manage the faculty records.
+        allow update, write, create: if isAdmin();
     }
     
+    // ------------------------------------
+    // 5. /classFacultyMapping/{mappingId}
+    // ------------------------------------
     match /classFacultyMapping/{mappingId} {
+        // Read: Any signed-in user can read the mapping
         allow read: if isSignedIn(); 
+        // Write/Create/Update: Only the Admin can manage the mappings
         allow write: if isAdmin();
     }
     
+    // ------------------------------------
+    // 6. /questions/{questionId}
+    // ------------------------------------
     match /questions/{questionId} {
+        // Read: Any signed-in user can read the questions to fill out the form
         allow read: if isSignedIn(); 
+        // Write/Create/Update: Only the Admin can manage the questions
         allow write: if isAdmin();
     }
     
+    // ------------------------------------
+    // 7. /feedback/{feedbackId} - The actual submissions
+    // ------------------------------------
     match /feedback/{feedbackId} {
+        // Create: A student can only submit feedback if the 'student_id' in the
+        // submission data matches their own UID. This enforces data integrity.
         allow create: if request.resource.data.student_id == request.auth.uid;
-        allow read: if isAdmin() || request.resource.data.student_id == request.auth.uid || get(/databases/$(database)/documents/faculty/$(request.auth.uid)).data.faculty_id == resource.data.faculty_id;
+        
+        // Read: The rule for reading is complex and must be evaluated carefully
+        allow read: if isAdmin() || 
+                       request.resource.data.student_id == request.auth.uid || 
+                       (
+                           // ⚠️ This entire block is a safe-guard for faculty read access:
+                           isSignedIn() && 
+                           exists(/databases/$(database)/documents/faculty/$(request.auth.uid)) && 
+                           get(/databases/$(database)/documents/faculty/$(request.auth.uid)).data.faculty_id == resource.data.faculty_id
+                       );
+                       
+        // Update/Delete: Only the Admin can modify or remove submitted feedback
         allow update, delete: if isAdmin();
     }
   }
 }
-
-    
