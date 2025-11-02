@@ -38,37 +38,34 @@ service cloud.firestore {
     }
 
     match /students/{studentId} {
-        allow read: if isAdmin(); // Only admins can read the full list
-        allow get: if isOwner(studentId) || isAdmin(); // Individual students can get their own doc
+        allow read: if isAdmin(); 
+        allow get: if isOwner(studentId) || isAdmin(); 
         allow update, write: if isAdmin();
         allow create: if isAdmin();
     }
     
     match /faculty/{facultyId} {
-        allow read: if isSignedIn(); // Any signed-in user can see the list of faculty
+        allow read: if isSignedIn(); 
         allow update, write: if isAdmin();
         allow create: if isAdmin();
     }
     
     match /classFacultyMapping/{mappingId} {
-        allow read: if isSignedIn(); // Any signed-in user can see the timetable
+        allow read: if isSignedIn(); 
         allow write: if isAdmin();
     }
     
     match /questions/{questionId} {
-        allow read: if isSignedIn(); // Any signed-in user can see the questions
+        allow read: if isSignedIn(); 
         allow write: if isAdmin();
     }
     
     match /feedback/{feedbackId} {
         allow create: if request.resource.data.student_id == request.auth.uid;
-        allow read: if isAdmin() || request.resource.data.student_id == request.auth.uid;
+        allow read: if isAdmin() || request.resource.data.student_id == request.auth.uid || get(/databases/$(database)/documents/faculty/$(request.auth.uid)).data.faculty_id == resource.data.faculty_id;
         allow update, delete: if isAdmin();
     }
-
-     match /feedback/{feedbackId} {
-       // Allow faculty to read feedback for their specific subjects
-       allow get, list: if get(/databases/$(database)/documents/faculty/$(request.auth.uid)).data.faculty_id == resource.data.faculty_id;
-     }
   }
 }
+
+    
